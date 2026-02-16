@@ -8,7 +8,6 @@ async function bootstrap() {
   const app = await NestFactory.create(AppModule, { bufferLogs: true });
   app.useLogger(app.get(Logger));
 
-
   // Global validation
   app.useGlobalPipes(
     new ValidationPipe({
@@ -19,7 +18,6 @@ async function bootstrap() {
     }),
   );
 
-  
   //  SWAGGER SETUP
   const config = new DocumentBuilder()
     .setTitle('KadArtisan API')
@@ -46,6 +44,5 @@ async function bootstrap() {
   const port = process.env.PORT ?? 3002;
   await app.listen(port);
   console.log('Swagger is running on http://localhost:3002/docs');
-  
 }
 bootstrap();

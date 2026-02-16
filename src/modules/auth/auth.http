@@ -1,0 +1,38 @@
+
+POST http://localhost:3002/auth/request-otp
+Content-Type: application/json
+
+{
+  "identifier": "synapgrid@gmail.com",
+  "channel": "EMAIL"
+}
+
+
+POST http://localhost:3002/auth/verify-otp
+Content-Type: application/json
+{
+  "identifier": "synapgrid@gmail.com",
+  "otp": "990259",
+  "channel": "EMAIL"
+}
+
+
+POST http://localhost:3002/auth/complete-registration
+Content-Type: application/json
+{
+  "fullName": "synapgrid ltd",
+  "phoneNumber": "+2348079198707",
+//   "email": "synapgrid@gmail.com",
+  "password": "Default$1234",
+  "confirmPassword": "Default$1234",
+  "tempToken": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZGVudGlmaWVyIjoic3luYXBncmlkQGdtYWlsLmNvbSIsImNoYW5uZWwiOiJFTUFJTCIsImlhdCI6MTc3MTI1NDAyMywiZXhwIjoxNzcxMjU0NjIzfQ.pThZetQ_00swluTLE1y3oY7HoxGjYu84YJLSMMqbGvM"
+}
+
+
+POST http://localhost:3002/auth/login
+Content-Type: application/json
+{
+  "identifier": "synapgrid@gmail.com",
+  "password": "Default$1234",
+  "channel": "EMAIL"
+}
