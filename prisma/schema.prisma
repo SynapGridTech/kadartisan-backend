@@ -5,3 +5,48 @@ generator client {
 datasource db {
   provider = "postgresql"
 }
+
+enum Role {
+  USER
+  ARTISAN
+  ADMIN
+}
+
+enum OtpChannel {
+  PHONE
+  EMAIL
+  WHATSAPP
+}
+
+
+model User {
+  id          Int      @id @default(autoincrement())
+  fullName    String
+  phoneNumber String   @unique
+  email        String?  @unique   
+  password    String
+  isVerified  Boolean  @default(false)
+  role        Role     @default(USER)
+  refreshToken  String?  
+  createdAt   DateTime @default(now())
+
+  otps Otp[]
+}
+
+model Otp {
+  id         Int        @id @default(autoincrement())
+  identifier String
+  channel    OtpChannel
+  code       String
+  expiresAt  DateTime
+  isUsed     Boolean    @default(false)
+  createdAt  DateTime   @default(now())
+
+  userId Int?
+  user   User? @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([identifier])
+  @@index([userId])
+}
+
+

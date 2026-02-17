@@ -8,6 +8,9 @@ import { ResponseTimeInterceptor } from './common/interceptors/response-time.int
 import { HealthModule } from './health/health.module';
 import { PrismaModule } from './database/prisma.module';
 import { AllExceptionsFilter } from './common/filters/all-exceptions.filter';
+import { AuthModule } from './modules/auth/auth.module';
+import { UsersModule } from './modules/user/user.module';
+import { NotificationModule } from './modules/notification/notification.module';
 
 const isProd = process.env.NODE_ENV === 'production';
 
@@ -37,6 +40,9 @@ const isProd = process.env.NODE_ENV === 'production';
     }),
     PrismaModule,
     HealthModule,
+    AuthModule,
+    UsersModule,
+    NotificationModule,
   ],
   providers: [
     { provide: APP_FILTER, useClass: AllExceptionsFilter },
