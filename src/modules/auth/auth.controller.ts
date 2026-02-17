@@ -13,6 +13,8 @@ import { CompleteRegistrationDto } from './dto/complete-registration.dto';
 import { AuthService } from './providers/auth.service';
 import { LoginDto } from '../user/dto/login.dto';
 import { JwtAuthGuard } from 'src/common/guards/jwt-auth.guard';
+import { ResetPasswordDto } from './dto/reset-password.dto';
+import { RequestPasswordResetDto } from './dto/request-password-reset.dto';
 
 @ApiTags('Authentication')
 @Controller('auth')
@@ -59,7 +61,26 @@ export class AuthController {
   // 🚪 LOGOUT (Protected)
   @UseGuards(JwtAuthGuard)
   @Post('logout')
-  async logout(@Req() req) {
-    return this.authService.logout(req.user.sub);
+  logout(@Req() req) {
+    return this.authService.logout(req.user.id);
+  }
+
+  @Post('forgot-password')
+  requestReset(@Body() dto: RequestPasswordResetDto) {
+    return this.authService.requestPasswordReset(dto.identifier, dto.channel);
+  }
+
+  @Post('verify-reset-otp')
+  verifyResetOtp(@Body() dto: any) {
+    return this.authService.verifyResetOtp(
+      dto.identifier,
+      dto.otp,
+      dto.channel,
+    );
+  }
+
+  @Post('reset-password')
+  resetPassword(@Body() dto: ResetPasswordDto) {
+    return this.authService.resetPassword(dto);
   }
 }

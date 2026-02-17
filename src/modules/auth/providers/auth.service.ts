@@ -11,6 +11,7 @@ import { LoginResponseDto } from '../dto/login-response.dto';
 import { OtpChannel } from '@prisma/client';
 import { SmsService } from 'src/modules/notification/providers/sms.service';
 import { EmailService } from 'src/modules/notification/providers/email.service';
+import { ResetPasswordDto } from '../dto/reset-password.dto';
 
 @Injectable()
 export class AuthService {
@@ -285,5 +286,126 @@ export class AuthService {
     });
 
     return { message: 'User logged out successfully' };
+  }
+
+  public async requestPasswordReset(identifier: string, channel: OtpChannel) {
+    let user;
+
+    if (channel === 'EMAIL') {
+      user = await this.prisma.user.findUnique({
+        where: { email: identifier },
+      });
+    } else {
+      user = await this.prisma.user.findUnique({
+        where: { phoneNumber: identifier },
+      });
+    }
+
+    // Prevent user enumeration
+    if (!user) {
+      return { message: 'If an account exists, an OTP has been sent.' };
+    }
+
+    const otp = Math.floor(100000 + Math.random() * 900000).toString();
+    const hashedOtp = await bcrypt.hash(otp, 10);
+
+    await this.prisma.otp.create({
+      data: {
+        identifier: channel === 'EMAIL' ? user.email! : user.phoneNumber,
+        channel,
+        code: hashedOtp,
+        expiresAt: new Date(Date.now() + 10 * 60 * 1000),
+      },
+    });
+
+    // 🔥 SEND OTP HERE
+    if (channel === 'EMAIL') {
+      // call your email service
+      await this.emailService.sendOtpEmail(user.email!, otp);
+      console.log(`OTP for ${user.email}: ${otp}`);
+    } else {
+      // call your SMS service
+      console.log(`OTP for ${user.phoneNumber}: ${otp}`);
+    }
+
+    return { message: 'If an account exists, an OTP has been sent.' };
+  }
+
+  public async verifyResetOtp(
+    identifier: string,
+    otp: string,
+    channel: OtpChannel,
+  ) {
+    const record = await this.prisma.otp.findFirst({
+      where: {
+        identifier,
+        channel,
+        isUsed: false,
+        expiresAt: { gt: new Date() },
+      },
+      orderBy: { createdAt: 'desc' },
+    });
+
+    if (!record) {
+      throw new BadRequestException('Invalid or expired OTP');
+    }
+
+    const match = await bcrypt.compare(otp, record.code);
+    if (!match) {
+      throw new BadRequestException('Invalid OTP');
+    }
+
+    await this.prisma.otp.update({
+      where: { id: record.id },
+      data: { isUsed: true },
+    });
+
+    const resetToken = await this.jwtService.signAsync(
+      { identifier, channel, type: 'PASSWORD_RESET' },
+      {
+        secret: process.env.JWT_TEMP_SECRET,
+        expiresIn: '10m',
+      },
+    );
+
+    return { resetToken };
+  }
+
+  public async resetPassword(dto: ResetPasswordDto) {
+    if (dto.newPassword !== dto.confirmPassword) {
+      throw new BadRequestException('Passwords do not match');
+    }
+
+    const payload = this.jwtService.verify(dto.tempToken, {
+      secret: process.env.JWT_TEMP_SECRET,
+    });
+
+    if (payload.type !== 'PASSWORD_RESET') {
+      throw new UnauthorizedException('Invalid token');
+    }
+
+    const identifier = payload.identifier;
+
+    const user = await this.prisma.user.findFirst({
+      where: {
+        OR: [{ email: identifier }, { phoneNumber: identifier }],
+      },
+    });
+
+    if (!user) {
+      throw new BadRequestException('User not found');
+    }
+
+    const hashedPassword = await bcrypt.hash(dto.newPassword, 10);
+
+    await this.prisma.user.update({
+      where: { id: user.id },
+      data: {
+        password: hashedPassword,
+        refreshToken: null, // force logout everywhere
+      },
+    });
+
+    return { message: 'Password reset successful' };
   }
 }

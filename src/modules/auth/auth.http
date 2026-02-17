@@ -25,7 +25,7 @@ Content-Type: application/json
 //   "email": "synapgrid@gmail.com",
   "password": "Default$1234",
   "confirmPassword": "Default$1234",
-  "tempToken": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZGVudGlmaWVyIjoic3luYXBncmlkQGdtYWlsLmNvbSIsImNoYW5uZWwiOiJFTUFJTCIsImlhdCI6MTc3MTI1NDAyMywiZXhwIjoxNzcxMjU0NjIzfQ.pThZetQ_00swluTLE1y3oY7HoxGjYu84YJLSMMqbGvM"
+  "tempToken": ""
 }
 
 
@@ -33,6 +33,33 @@ POST http://localhost:3002/auth/login
 Content-Type: application/json
 {
   "identifier": "synapgrid@gmail.com",
-  "password": "Default$1234",
+  "password": "Default$123",
   "channel": "EMAIL"
 }
+
+POST http://localhost:3002/auth/logout
+Authorization: Bearer 
+
+POST http://localhost:3002/auth/forgot-password
+Content-Type: application/json
+{
+    "identifier": "synapgrid@gmail.com",
+    "channel": "EMAIL"
+}
+
+POST http://localhost:3002/auth/verify-reset-otp
+Content-Type: application/json
+{
+    "identifier": "synapgrid@gmail.com",
+    "otp": "666484",
+    "channel": "EMAIL"
+}
+
+POST http://localhost:3002/auth/reset-password
+Content-Type: application/json
+{
+    "tempToken": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZGVudGlmaWVyIjoic3luYXBncmlkQGdtYWlsLmNvbSIsImNoYW5uZWwiOiJFTUFJTCIsInR5cGUiOiJQQVNTV09SRF9SRVNFVCIsImlhdCI6MTc3MTI1NzE3OCwiZXhwIjoxNzcxMjU3Nzc4fQ.3vc8j61n5xG-AdP8gpmcpLa2XTN75a4gk0ZJhkzZ6NE",
+    "newPassword": "Default$123",
+    "confirmPassword": "Default$123"
+}
+
