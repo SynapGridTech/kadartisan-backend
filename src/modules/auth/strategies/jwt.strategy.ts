@@ -14,7 +14,7 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
     });
   }
 
-  async validate(payload: any) {
+  public async validate(payload: any) {
     // IMPORTANT: your Prisma id is Int
     const userId = Number(payload.sub);
 

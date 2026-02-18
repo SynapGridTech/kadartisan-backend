@@ -15,4 +15,8 @@ export class VerifyOtpDto {
   @ApiProperty({ example: 'Phone Number , Email , Whatsapp' })
   @IsEnum(OtpChannel)
   channel: OtpChannel;
+
+  @IsString()
+  @ApiProperty({ example: 'ARTISAN, USER' })
+  role?: string;
 }

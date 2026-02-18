@@ -17,7 +17,7 @@
 //   channel: OtpChannel;
 // }
 
-import { IsEnum, IsEmail, Matches, ValidateIf } from 'class-validator';
+import { IsEnum, IsEmail, Matches, ValidateIf, IsString } from 'class-validator';
 import { OtpChannel } from '@prisma/client';
 import { ApiProperty } from '@nestjs/swagger';
 
@@ -34,4 +34,8 @@ export class RequestOtpDto {
     message: 'Invalid phone number format',
   })
   identifier: string;
+
+  @IsString()
+  @ApiProperty({ example: 'ARTISAN, USER' })
+  role?: string;
 }
