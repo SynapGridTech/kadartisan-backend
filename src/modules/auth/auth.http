@@ -3,37 +3,40 @@ POST http://localhost:3002/auth/request-otp
 Content-Type: application/json
 
 {
-  "identifier": "synapgrid@gmail.com",
-  "channel": "EMAIL"
+  "identifier": "imamu@gmail.com",
+  "channel": "EMAIL",
+  "role": "ARTISAN"
 }
 
 
 POST http://localhost:3002/auth/verify-otp
 Content-Type: application/json
 {
-  "identifier": "synapgrid@gmail.com",
-  "otp": "990259",
-  "channel": "EMAIL"
+  "identifier": "imamu@gmail.com",
+  "otp": "325320",
+  "channel": "EMAIL",
+  "role": "ARTISAN"
 }
 
 
 POST http://localhost:3002/auth/complete-registration
 Content-Type: application/json
 {
-  "fullName": "synapgrid ltd",
-  "phoneNumber": "+2348079198707",
-//   "email": "synapgrid@gmail.com",
+  "fullName": "Usman Imam",
+  "phoneNumber": "+2347053028914",
+  "email": "imamu@gmail.com",
   "password": "Default$1234",
   "confirmPassword": "Default$1234",
-  "tempToken": ""
+  "role": "ARTISAN",
+  "tempToken": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZGVudGlmaWVyIjoiaW1hbXVAZ21haWwuY29tIiwiY2hhbm5lbCI6IkVNQUlMIiwicm9sZSI6IlVTRVIiLCJpYXQiOjE3NzE0MTc1MTAsImV4cCI6MTc3MTQxODExMH0.XrERpCwbYWdJA8Lq-DLQPfIPPOnThaDnZDApjjLvenQ"
 }
 
 
 POST http://localhost:3002/auth/login
 Content-Type: application/json
 {
-  "identifier": "synapgrid@gmail.com",
-  "password": "Default$123",
+  "identifier": "imamu@gmail.com",
+  "password": "Default$1234",
   "channel": "EMAIL"
 }
 

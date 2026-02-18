@@ -1,0 +1,8 @@
+POST http://localhost:3002/bootstrap/admin
+Content-Type: application/json
+{
+  "email": "admin@gmail.com",
+  "password": "Default$123",
+  "fullName": "System Administrator",
+  "phoneNumber": "08099876543"
+}

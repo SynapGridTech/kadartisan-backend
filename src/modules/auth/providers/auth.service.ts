@@ -12,6 +12,8 @@ import { OtpChannel } from '@prisma/client';
 import { SmsService } from 'src/modules/notification/providers/sms.service';
 import { EmailService } from 'src/modules/notification/providers/email.service';
 import { ResetPasswordDto } from '../dto/reset-password.dto';
+import { User } from 'src/modules/user/entities/user.entity';
+import { securityAlertTemplate } from 'src/common/templates/security-alert.template';
 
 @Injectable()
 export class AuthService {
@@ -25,8 +27,45 @@ export class AuthService {
     private emailService: EmailService,
   ) {}
 
+  //----------------------------------------
+  //  HELPER Fns
+  private async handleFailedLogin(user: any) {
+    const attempts = user.failedLoginAttempts + 1;
+
+    if (attempts >= 3) {
+      const lockTime = new Date(Date.now() + 15 * 60 * 1000); // 15 minutes
+
+      await this.prisma.user.update({
+        where: { id: user.id },
+        data: {
+          failedLoginAttempts: 0,
+          lockUntil: lockTime,
+        },
+      });
+
+      await this.emailService.sendSecurityAlertEmail(
+        user.email,
+        user.fullName,
+        lockTime,
+      );
+    } else {
+      await this.prisma.user.update({
+        where: { id: user.id },
+        data: {
+          failedLoginAttempts: attempts,
+        },
+      });
+    }
+  }
+
   //_______________Logic for OTP generation, verification, and user registration/login
-  public async requestOtp(identifier: string, channel: OtpChannel) {
+  public async requestOtp(
+    identifier: string,
+    channel: OtpChannel,
+    role?: 'USER' | 'ARTISAN',
+  ) {
+    const selectedRole = role === 'ARTISAN' ? 'ARTISAN' : 'USER';
+
     const lastOtp = await this.prisma.otp.findFirst({
       where: {
         identifier,
@@ -62,11 +101,21 @@ export class AuthService {
       await this.emailService.sendOtpEmail(identifier, otp);
     }
 
-    return { message: 'OTP sent successfully' };
+    return {
+      message: 'OTP sent successfully',
+      role: selectedRole,
+    };
   }
 
   //______________ Verify OTP and return a temporary token for registration _________
-  public async verifyOtp(identifier: string, otp: string, channel: OtpChannel) {
+  public async verifyOtp(
+    identifier: string,
+    otp: string,
+    channel: OtpChannel,
+    role?: 'USER' | 'ARTISAN',
+  ) {
+    const selectedRole = role === 'ARTISAN' ? 'ARTISAN' : 'USER';
+
     const record = await this.prisma.otp.findFirst({
       where: {
         identifier,
@@ -94,7 +143,7 @@ export class AuthService {
     });
 
     const tempToken = await this.jwtService.signAsync(
-      { identifier, channel },
+      { identifier, channel, role: selectedRole },
       {
         secret: process.env.JWT_TEMP_SECRET,
         expiresIn: '10m',
@@ -114,7 +163,7 @@ export class AuthService {
       secret: process.env.JWT_TEMP_SECRET,
     });
 
-    const { identifier, channel } = payload;
+    const { identifier, channel, role } = payload;
 
     let email: string | undefined;
     let phoneNumber: string;
@@ -144,31 +193,36 @@ export class AuthService {
 
     const hashedPassword = await bcrypt.hash(dto.password, 10);
 
+    const isArtisanRequest = role === 'ARTISAN';
+
     const user = await this.prisma.user.create({
       data: {
         fullName: dto.fullName,
         phoneNumber,
         email,
         password: hashedPassword,
-        role: dto.role || 'USER',
+        role: 'USER',
         isVerified: true,
+        artisanStatus: isArtisanRequest ? 'PENDING' : null,
       },
     });
 
     return {
       accessToken: await this.jwtService.signAsync(
-        { sub: user.id },
+        { sub: user.id, role: user.role },
         {
           secret: process.env.JWT_SECRET,
           expiresIn: '15m',
         },
       ),
+      message: isArtisanRequest
+        ? 'Registration successful. Artisan request pending admin approval.'
+        : 'Registration successful.',
     };
   }
 
   //____________ Logic for User login ________________
   public async login(
-    // phoneNumber: string,
     identifier: string,
     password: string,
     channel: OtpChannel,
@@ -191,10 +245,56 @@ export class AuthService {
       throw new UnauthorizedException('Invalid credentials');
     }
 
+    // 🚨 CHECK IF LOCKED
+    if (user.lockUntil && user.lockUntil > new Date()) {
+      throw new UnauthorizedException(
+        `Account locked. Try again after ${user.lockUntil.toLocaleTimeString()}`,
+      );
+    }
+
     const match = await bcrypt.compare(password, user.password);
+
     if (!match) {
+      const attempts = user.failedLoginAttempts + 1;
+
+      // 🔐 If 3 failed attempts → lock account
+      if (attempts >= 3) {
+        const lockUntil = new Date(Date.now() + 15 * 60 * 1000); // 15 minutes
+
+        await this.prisma.user.update({
+          where: { id: user.id },
+          data: {
+            failedLoginAttempts: 0,
+            lockUntil,
+          },
+        });
+
+        // 📧 Send security email
+        if (user.email) {
+          await this.emailService.sendSecurityAlertEmail(
+            user.email,
+            user.fullName,
+            lockUntil,
+          );
+        }
+      } else {
+        await this.prisma.user.update({
+          where: { id: user.id },
+          data: { failedLoginAttempts: attempts },
+        });
+      }
+
       throw new UnauthorizedException('Invalid credentials');
     }
+
+    // ✅ SUCCESS → RESET FAILED ATTEMPTS
+    await this.prisma.user.update({
+      where: { id: user.id },
+      data: {
+        failedLoginAttempts: 0,
+        lockUntil: null,
+      },
+    });
 
     // 🔐 Generate Access Token
     const accessToken = await this.jwtService.signAsync(
@@ -220,7 +320,6 @@ export class AuthService {
       },
     );
 
-    // 🔐 Hash refresh token before saving
     const hashedRefreshToken = await bcrypt.hash(refreshToken, 10);
 
     await this.prisma.user.update({
@@ -230,7 +329,7 @@ export class AuthService {
 
     return {
       accessToken,
-      refreshToken, // return to client
+      refreshToken,
       user: {
         id: user.id,
         fullName: user.fullName,

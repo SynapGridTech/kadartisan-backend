@@ -1,0 +1,18 @@
+POST http://localhost:3002/auth/login
+Content-Type: application/json
+{
+  "identifier": "admin@gmail.com",
+  "password": "Default$123",
+  "channel": "EMAIL"
+}
+
+
+GET http://localhost:3002/admin/artisans/pending
+Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOjUsImlzVmVyaWZpZWQiOmZhbHNlLCJmdWxsTmFtZSI6IlN5c3RlbSBBZG1pbmlzdHJhdG9yIiwicGhvbmVOdW1iZXIiOiIwODA5OTg3NjU0MyIsInJvbGUiOiJBRE1JTiIsImlhdCI6MTc3MTQxODA5NSwiZXhwIjoxNzcxNDE4OTk1fQ.GLBKXCrR6oKeXniR1pQHGDHWiPF2DplrCae5AghH_fc
+
+
+PATCH http://localhost:3002/admin/artisans/:id/approve
+
+
+
+PATCH http://localhost:3002/admin/artisans/:id/reject
