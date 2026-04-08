@@ -3,7 +3,7 @@ POST http://localhost:3002/auth/request-otp
 Content-Type: application/json
 
 {
-  "identifier": "imamu@gmail.com",
+  "identifier": "armiyau@gmail.com",
   "channel": "EMAIL",
   "role": "ARTISAN"
 }
@@ -12,8 +12,8 @@ Content-Type: application/json
 POST http://localhost:3002/auth/verify-otp
 Content-Type: application/json
 {
-  "identifier": "imamu@gmail.com",
-  "otp": "325320",
+  "identifier": "armiyau@gmail.com",
+  "otp": "171746",
   "channel": "EMAIL",
   "role": "ARTISAN"
 }
@@ -22,20 +22,20 @@ Content-Type: application/json
 POST http://localhost:3002/auth/complete-registration
 Content-Type: application/json
 {
-  "fullName": "Usman Imam",
-  "phoneNumber": "+2347053028914",
-  "email": "imamu@gmail.com",
+  "fullName": "Armi Argngu",
+  "phoneNumber": "+2348093090914",
+  "email": "armiyau@gmail.com",
   "password": "Default$1234",
   "confirmPassword": "Default$1234",
   "role": "ARTISAN",
-  "tempToken": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZGVudGlmaWVyIjoiaW1hbXVAZ21haWwuY29tIiwiY2hhbm5lbCI6IkVNQUlMIiwicm9sZSI6IlVTRVIiLCJpYXQiOjE3NzE0MTc1MTAsImV4cCI6MTc3MTQxODExMH0.XrERpCwbYWdJA8Lq-DLQPfIPPOnThaDnZDApjjLvenQ"
+  "tempToken": ""
 }
 
 
 POST http://localhost:3002/auth/login
 Content-Type: application/json
 {
-  "identifier": "imamu@gmail.com",
+  "identifier": "armiyau@gmail.com",
   "password": "Default$1234",
   "channel": "EMAIL"
 }
@@ -61,7 +61,7 @@ Content-Type: application/json
 POST http://localhost:3002/auth/reset-password
 Content-Type: application/json
 {
-    "tempToken": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZGVudGlmaWVyIjoic3luYXBncmlkQGdtYWlsLmNvbSIsImNoYW5uZWwiOiJFTUFJTCIsInR5cGUiOiJQQVNTV09SRF9SRVNFVCIsImlhdCI6MTc3MTI1NzE3OCwiZXhwIjoxNzcxMjU3Nzc4fQ.3vc8j61n5xG-AdP8gpmcpLa2XTN75a4gk0ZJhkzZ6NE",
+    "tempToken": "",
     "newPassword": "Default$123",
     "confirmPassword": "Default$123"
 }

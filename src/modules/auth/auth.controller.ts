@@ -28,7 +28,7 @@ export class AuthController {
 
   @Post('verify-otp')
   public verifyOtp(@Body() dto: VerifyOtpDto) {
-    return this.authService.verifyOtp(dto.identifier, dto.otp, dto.channel);
+    return this.authService.verifyOtp(dto.identifier, dto.otp, dto.channel, dto.role as any);
   }
 
   @Post('complete-registration')

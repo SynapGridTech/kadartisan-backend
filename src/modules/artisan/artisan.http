@@ -1,0 +1,25 @@
+
+
+POST http://localhost:3002/artisan/create-profile
+Authorization:Bearer 
+Content-Type: application/json
+{
+  "skills":  ["Electrical Installation"],
+  "state": "Kaduna",
+  "lga": "Birnin Gwari",
+  "workshopAddress": "No. 18 Tsohuwar Kasuwa, Birnin Gwari"
+}
+
+
+GET http://localhost:3002/artisan/profile
+Authorization: Bearer 
+
+POST http://localhost:3002/artisan/profile/reapply
+Authorization: Bearer 
+Content-Type: application/json
+{
+  "skills":  ["Electrical Installation"],
+  "state": "Kaduna",
+  "lga": "Birnin Gwari",
+  "workshopAddress": "No. 18 Tsohuwar Kasuwa, Birnin Gwari"
+}

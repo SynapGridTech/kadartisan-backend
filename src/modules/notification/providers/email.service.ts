@@ -1,24 +1,17 @@
-import { Injectable } from '@nestjs/common';
-import * as nodemailer from 'nodemailer';
+import { Injectable, Logger } from '@nestjs/common';
+import { Resend } from 'resend';
 import { otpEmailTemplate } from 'src/common/templates/otp-email.template';
 import { securityAlertTemplate } from 'src/common/templates/security-alert.template';
-// import { otpEmailTemplate } from 'src/common/templates/email/otp-email.template';
-// import { securityAlertTemplate } from 'src/common/templates/email/security-alert.template';
+import { artisanApprovalTemplate } from 'src/common/templates/artisan-approval.template';
+import { artisanRejectionTemplate } from 'src/common/templates/artisan-rejection.template';
 
 @Injectable()
 export class EmailService {
-  private transporter: nodemailer.Transporter;
+  private resend: Resend;
+  private readonly logger = new Logger(EmailService.name);
 
   constructor() {
-    this.transporter = nodemailer.createTransport({
-      host: process.env.EMAIL_HOST,
-      port: Number(process.env.EMAIL_PORT),
-      secure: false,
-      auth: {
-        user: process.env.EMAIL_USER,
-        pass: process.env.EMAIL_PASS,
-      },
-    });
+    this.resend = new Resend(process.env.RESEND_API_KEY);
   }
 
   // ✅ Generic Mail Sender
@@ -27,12 +20,25 @@ export class EmailService {
     subject: string;
     html: string;
   }) {
-    await this.transporter.sendMail({
-      from: process.env.EMAIL_FROM,
-      to: options.to,
-      subject: options.subject,
-      html: options.html,
-    });
+    try {
+      const { data, error } = await this.resend.emails.send({
+        from: process.env.EMAIL_FROM || 'kadArtisan <synapgrid@resend.dev>',
+        to: options.to,
+        subject: options.subject,
+        html: options.html,
+      });
+
+      if (error) {
+        this.logger.error('Failed to send email:', error);
+        throw new Error(`Email sending failed: ${error.message}`);
+      }
+
+      this.logger.log(`Email sent successfully: ${data?.id}`);
+      return data;
+    } catch (error) {
+      this.logger.error('Error sending email:', error);
+      throw error;
+    }
   }
 
   // ✅ OTP Email
@@ -54,6 +60,28 @@ export class EmailService {
       to,
       subject: '⚠ Account Locked - Security Alert',
       html: securityAlertTemplate(fullName, lockUntil),
+    });
+  }
+
+  // ✅ Artisan Approval Email
+  public async sendArtisanApprovalEmail(to: string, fullName: string) {
+    await this.sendMail({
+      to,
+      subject: '🎉 Your Artisan Application Has Been Approved!',
+      html: artisanApprovalTemplate(fullName),
+    });
+  }
+
+  // ✅ Artisan Rejection Email
+  public async sendArtisanRejectionEmail(
+    to: string,
+    fullName: string,
+    reason?: string,
+  ) {
+    await this.sendMail({
+      to,
+      subject: 'Artisan Application Update',
+      html: artisanRejectionTemplate(fullName, reason),
     });
   }
 }

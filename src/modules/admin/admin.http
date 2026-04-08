@@ -8,11 +8,16 @@ Content-Type: application/json
 
 
 GET http://localhost:3002/admin/artisans/pending
-Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOjUsImlzVmVyaWZpZWQiOmZhbHNlLCJmdWxsTmFtZSI6IlN5c3RlbSBBZG1pbmlzdHJhdG9yIiwicGhvbmVOdW1iZXIiOiIwODA5OTg3NjU0MyIsInJvbGUiOiJBRE1JTiIsImlhdCI6MTc3MTQxODA5NSwiZXhwIjoxNzcxNDE4OTk1fQ.GLBKXCrR6oKeXniR1pQHGDHWiPF2DplrCae5AghH_fc
-
-
-PATCH http://localhost:3002/admin/artisans/:id/approve
 
 
 
-PATCH http://localhost:3002/admin/artisans/:id/reject
+PATCH http://localhost:3002/admin/artisans/9/approve
+Authorization: Bearer 
+
+
+PATCH http://localhost:3002/admin/artisans/9/reject
+Authorization: Bearer 
+Content-Type: application/json
+{
+  "reason": "i don't like you dan shehu"
+}
