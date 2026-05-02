@@ -24,7 +24,6 @@ enum ArtisanStatus {
   REJECTED
 }
 
-
 model User {
   id          Int      @id @default(autoincrement())
   fullName    String
@@ -37,6 +36,7 @@ model User {
   artisanStatus ArtisanStatus?   
   artisanApprovedAt DateTime?    
   artisanRejectionReason String?
+  artisanProfile  ArtisanProfile?
 
   failedLoginAttempts Int      @default(0)
   lockUntil           DateTime?
@@ -45,6 +45,75 @@ model User {
   createdAt   DateTime @default(now())
 
   otps Otp[]
+  serviceRequests ServiceRequest[]
+}
+
+model ArtisanProfile {
+  id              Int      @id @default(autoincrement())
+  userId          Int      @unique
+  user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  state           String
+  lga             String?
+  workshopAddress String?
+  
+  skills          ArtisanSkill[]
+  
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@index([userId])
+}
+
+model Skill {
+  id        Int      @id @default(autoincrement())
+  name      String   @unique
+  category  String?
+  artisans  ArtisanSkill[]
+
+  @@index([name])
+}
+
+model ArtisanSkill {
+  id        Int      @id @default(autoincrement())
+  artisanId Int
+  artisan   ArtisanProfile @relation(fields: [artisanId], references: [id], onDelete: Cascade)
+  skillId   Int
+  skill     Skill  @relation(fields: [skillId], references: [id], onDelete: Cascade)
+  
+  @@unique([artisanId, skillId])
+  @@index([artisanId])
+  @@index([skillId])
+}
+
+model ServiceRequest {
+  id              Int      @id @default(autoincrement())
+  userId          Int
+  user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  title           String
+  description     String
+  state           String
+  lga             String?
+  skillRequired   String   // Primary skill needed (for search)
+  budget          Float?
+  urgency         String?  // 'URGENT', 'STANDARD', 'FLEXIBLE'
+  contactInfo     String?
+  
+  status          ServiceRequestStatus @default(PENDING)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  
+  @@index([state, skillRequired, status])
+  @@index([userId])
+}
+
+enum ServiceRequestStatus {
+  PENDING
+  MATCHED
+  IN_PROGRESS
+  COMPLETED
+  CANCELLED
 }
 
 
