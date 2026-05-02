@@ -2,8 +2,8 @@ import { Injectable } from '@nestjs/common';
 import * as nodemailer from 'nodemailer';
 import { otpEmailTemplate } from 'src/common/templates/otp-email.template';
 import { securityAlertTemplate } from 'src/common/templates/security-alert.template';
-// import { otpEmailTemplate } from 'src/common/templates/email/otp-email.template';
-// import { securityAlertTemplate } from 'src/common/templates/email/security-alert.template';
+import { artisanApprovalTemplate } from 'src/common/templates/artisan-approval.template';
+import { artisanRejectionTemplate } from 'src/common/templates/artisan-rejection.template';
 
 @Injectable()
 export class EmailService {
@@ -54,6 +54,28 @@ export class EmailService {
       to,
       subject: '⚠ Account Locked - Security Alert',
       html: securityAlertTemplate(fullName, lockUntil),
+    });
+  }
+
+  // ✅ Artisan Approval Email
+  public async sendArtisanApprovalEmail(to: string, fullName: string) {
+    await this.sendMail({
+      to,
+      subject: '🎉 Your Artisan Application Has Been Approved!',
+      html: artisanApprovalTemplate(fullName),
+    });
+  }
+
+  // ✅ Artisan Rejection Email
+  public async sendArtisanRejectionEmail(
+    to: string,
+    fullName: string,
+    reason?: string,
+  ) {
+    await this.sendMail({
+      to,
+      subject: 'Artisan Application Update',
+      html: artisanRejectionTemplate(fullName, reason),
     });
   }
 }

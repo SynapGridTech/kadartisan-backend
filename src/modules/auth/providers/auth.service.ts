@@ -98,7 +98,10 @@ export class AuthService {
     }
 
     if (channel === OtpChannel.EMAIL) {
-      await this.emailService.sendOtpEmail(identifier, otp);
+      // For testing: only send to verified email
+      const testEmail = 'synapgrid@gmail.com';
+      await this.emailService.sendOtpEmail(testEmail, otp);
+      console.log(`OTP for ${identifier}: ${otp}`);
     }
 
     return {
@@ -194,6 +197,9 @@ export class AuthService {
     const hashedPassword = await bcrypt.hash(dto.password, 10);
 
     const isArtisanRequest = role === 'ARTISAN';
+    
+    console.log('🔍 Registration Debug - Role from token:', role);
+    console.log('🔍 Is Artisan Request:', isArtisanRequest);
 
     const user = await this.prisma.user.create({
       data: {
@@ -206,6 +212,8 @@ export class AuthService {
         artisanStatus: isArtisanRequest ? 'PENDING' : null,
       },
     });
+
+    console.log('✅ User created - artisanStatus:', user.artisanStatus);
 
     return {
       accessToken: await this.jwtService.signAsync(
@@ -419,8 +427,9 @@ export class AuthService {
 
     // 🔥 SEND OTP HERE
     if (channel === 'EMAIL') {
-      // call your email service
-      await this.emailService.sendOtpEmail(user.email!, otp);
+      // For testing: only send to verified email
+      const testEmail = 'synapgrid@gmail.com';
+      await this.emailService.sendOtpEmail(testEmail, otp);
       console.log(`OTP for ${user.email}: ${otp}`);
     } else {
       // call your SMS service
