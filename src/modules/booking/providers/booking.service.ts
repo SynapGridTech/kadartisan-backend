@@ -6,7 +6,7 @@ import { CreateServiceRequestDto } from '../dto/create-service-request.dto';
 export class BookingService {
   constructor(private prisma: PrismaService) {}
 
-  // Create a new service request
+  // Create a new service requests
   async createRequest(userId: number, dto: CreateServiceRequestDto) {
     // Check if user exists
     const user = await this.prisma.user.findUnique({
