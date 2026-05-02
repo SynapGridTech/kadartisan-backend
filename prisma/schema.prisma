@@ -24,6 +24,15 @@ enum ArtisanStatus {
   REJECTED
 }
 
+
+enum ServiceRequestStatus {
+  PENDING
+  MATCHED
+  IN_PROGRESS
+  COMPLETED
+  CANCELLED
+}
+
 model User {
   id          Int      @id @default(autoincrement())
   fullName    String
@@ -108,13 +117,6 @@ model ServiceRequest {
   @@index([userId])
 }
 
-enum ServiceRequestStatus {
-  PENDING
-  MATCHED
-  IN_PROGRESS
-  COMPLETED
-  CANCELLED
-}
 
 
 model Otp {
