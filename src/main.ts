@@ -4,10 +4,22 @@ import { ValidationPipe } from '@nestjs/common';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import { Logger } from 'nestjs-pino';
 import { RolesGuard } from './common/guards/roles.guard';
+import { ConfigService } from '@nestjs/config';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule, { bufferLogs: true });
   app.useLogger(app.get(Logger));
+
+  const configService = app.get(ConfigService);
+  const frontendUrl = configService.get<string>('frontendUrl') ?? 'http://localhost:3002';
+  const allowedOrigins = frontendUrl.split(',').map((o) => o.trim());
+
+  app.enableCors({
+    origin: allowedOrigins,
+    credentials: true,
+    methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
+    allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With'],
+  });
 
   // Global validation
   app.useGlobalPipes(
