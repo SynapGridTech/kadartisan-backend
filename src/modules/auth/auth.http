@@ -35,8 +35,8 @@ Content-Type: application/json
 POST http://localhost:3002/auth/login
 Content-Type: application/json
 {
-  "identifier": "albani@gmail.com",
-  "password": "Default$1234",
+  "identifier": "admin@gmail.com",
+  "password": "Default$123",
   "channel": "EMAIL"
 }
 
@@ -66,3 +66,8 @@ Content-Type: application/json
     "confirmPassword": "Default$123"
 }
 
+// {
+//   "identifier": "admin@gmail.com",
+//   "password": "Default$123",
+//   "channel": "EMAIL"
+// }

@@ -14,7 +14,7 @@ import { CreateArtisanProfileDto } from './dto/create-artisan-profile.dto';
 import { JwtAuthGuard } from 'src/common/guards/jwt-auth.guard';
 
 @ApiTags('Artisan')
-@ApiBearerAuth()
+@ApiBearerAuth('access-token')
 @UseGuards(JwtAuthGuard)
 @Controller('artisan')
 export class ArtisanController {
