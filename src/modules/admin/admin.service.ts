@@ -9,6 +9,51 @@ export class AdminService {
     private emailService: EmailService,
   ) {}
 
+  private readonly userSelect = {
+    id: true,
+    fullName: true,
+    email: true,
+    phoneNumber: true,
+    role: true,
+    isVerified: true,
+    artisanStatus: true,
+    artisanApprovedAt: true,
+    artisanRejectionReason: true,
+    createdAt: true,
+    artisanProfile: {
+      include: {
+        skills: {
+          include: {
+            skill: true,
+          },
+        },
+      },
+    },
+  };
+
+  public async getAllUsers() {
+    return this.prisma.user.findMany({
+      select: this.userSelect,
+      orderBy: { createdAt: 'desc' },
+    });
+  }
+
+  public async getArtisans() {
+    return this.prisma.user.findMany({
+      where: { role: 'ARTISAN' },
+      select: this.userSelect,
+      orderBy: { createdAt: 'desc' },
+    });
+  }
+
+  public async getRegularUsers() {
+    return this.prisma.user.findMany({
+      where: { role: 'USER' },
+      select: this.userSelect,
+      orderBy: { createdAt: 'desc' },
+    });
+  }
+
   public async getPendingArtisans() {
     return this.prisma.user.findMany({
       where: {

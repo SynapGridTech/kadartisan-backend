@@ -11,6 +11,21 @@ import { Role } from '@prisma/client';
 export class AdminController {
   constructor(private readonly adminService: AdminService) {}
 
+  @Get('users')
+  getAllUsers() {
+    return this.adminService.getAllUsers();
+  }
+
+  @Get('users/artisans')
+  getArtisans() {
+    return this.adminService.getArtisans();
+  }
+
+  @Get('users/clients')
+  getRegularUsers() {
+    return this.adminService.getRegularUsers();
+  }
+
   @Get('artisans/pending')
   getPendingArtisans() {
     return this.adminService.getPendingArtisans();

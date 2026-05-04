@@ -10,14 +10,15 @@ export class CreateServiceRequestDto {
   @IsString()
   description: string;
 
-  @ApiProperty({ example: 'Kaduna' })
-  @IsString()
-  state: string;
+  @ApiProperty({  required: false })
+  @IsOptional()
+  image?: string;
+
 
   @ApiProperty({ example: 'Kaduna North', required: false })
   @IsString()
   @IsOptional()
-  lga?: string;
+  serviceLocation?: string;
 
   @ApiProperty({ example: 'Electrical Installation' })
   @IsString()
