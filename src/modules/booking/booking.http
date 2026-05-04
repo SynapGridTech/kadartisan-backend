@@ -1,0 +1,31 @@
+
+
+POST http://localhost:3002/booking/request
+Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOjgsImlzVmVyaWZpZWQiOnRydWUsImZ1bGxOYW1lIjoiQWxiYW5pIFphcmlhIiwicGhvbmVOdW1iZXIiOiIrMjM0ODA1MzA5MDkxNCIsInJvbGUiOiJVU0VSIiwiaWF0IjoxNzc3ODkwNzc4LCJleHAiOjE3Nzc4OTE2Nzh9.V6rqzBKzeAuk8qQeBUJA9XrbyCnq-TkIed_r5CEvaMY
+Content-Type: application/json
+{
+    "title": "Light Problem",
+    "description": "I need a good Electrician to fix my house Light",
+    "skillRequired": "Electrician",
+    "serviceLocation": "Kigo Road ",
+    "budget": 3000,
+    "urgency": "URGENT",
+    "contactInfo": "+2348123456789"
+}
+
+
+
+GET http://localhost:3002/booking/artisans
+Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOjgsImlzVmVyaWZpZWQiOnRydWUsImZ1bGxOYW1lIjoiQWxiYW5pIFphcmlhIiwicGhvbmVOdW1iZXIiOiIrMjM0ODA1MzA5MDkxNCIsInJvbGUiOiJVU0VSIiwiaWF0IjoxNzc3ODkwNzc4LCJleHAiOjE3Nzc4OTE2Nzh9.V6rqzBKzeAuk8qQeBUJA9XrbyCnq-TkIed_r5CEvaMY
+
+###
+
+# Get available service requests for artisan (requires ARTISAN role + APPROVED status)
+GET http://localhost:3002/booking/requests/available
+Authorization: Bearer <ARTISAN_BEARER_TOKEN>
+
+###
+
+# Artisan accepts a service request
+POST http://localhost:3002/booking/request/1/accept
+Authorization: Bearer <ARTISAN_BEARER_TOKEN>

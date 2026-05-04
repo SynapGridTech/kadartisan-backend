@@ -46,15 +46,16 @@ model User {
   artisanApprovedAt DateTime?    
   artisanRejectionReason String?
   artisanProfile  ArtisanProfile?
-
+  
   failedLoginAttempts Int      @default(0)
   lockUntil           DateTime?
-  refreshToken        String?  
-
+  refreshToken        String?
+  
   createdAt   DateTime @default(now())
-
+  
   otps Otp[]
-  serviceRequests ServiceRequest[]
+  serviceRequests ServiceRequest[] @relation("ServiceRequestCustomer")
+  acceptedRequests ServiceRequest[] @relation("ServiceRequestArtisan")
 }
 
 model ArtisanProfile {
@@ -98,23 +99,28 @@ model ArtisanSkill {
 model ServiceRequest {
   id              Int      @id @default(autoincrement())
   userId          Int
-  user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  
+  user            User     @relation("ServiceRequestCustomer", fields: [userId], references: [id], onDelete: Cascade)
+
+  artisanId       Int?
+  artisan         User?    @relation("ServiceRequestArtisan", fields: [artisanId], references: [id])
+
   title           String
   description     String
+  image           String?
   state           String
   lga             String?
   skillRequired   String   // Primary skill needed (for search)
   budget          Float?
   urgency         String?  // 'URGENT', 'STANDARD', 'FLEXIBLE'
   contactInfo     String?
-  
+
   status          ServiceRequestStatus @default(PENDING)
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
-  
+
   @@index([state, skillRequired, status])
   @@index([userId])
+  @@index([artisanId])
 }
 
 
