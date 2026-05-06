@@ -3,40 +3,40 @@ POST http://localhost:3002/auth/request-otp
 Content-Type: application/json
 
 {
-  "identifier": "armiyau@gmail.com",
+  "identifier": "isahgee@gmail.com",
   "channel": "EMAIL",
-  "role": "ARTISAN"
+  "role": "USER"
 }
 
 
 POST http://localhost:3002/auth/verify-otp
 Content-Type: application/json
 {
-  "identifier": "armiyau@gmail.com",
-  "otp": "171746",
+  "identifier": "isahgee@gmail.com",
+  "otp": "232516",
   "channel": "EMAIL",
-  "role": "ARTISAN"
+  "role": "USER"
 }
 
 
 POST http://localhost:3002/auth/complete-registration
 Content-Type: application/json
 {
-  "fullName": "Armi Argngu",
-  "phoneNumber": "+2348093090914",
-  "email": "armiyau@gmail.com",
+  "fullName": "Isah Aligee",
+  "phoneNumber": "+2348178090940",
+  "email": "isahgee@gmail.com",
   "password": "Default$1234",
   "confirmPassword": "Default$1234",
-  "role": "ARTISAN",
-  "tempToken": ""
+  "role": "USER",
+  "tempToken": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZGVudGlmaWVyIjoiaXNhaGdlZUBnbWFpbC5jb20iLCJjaGFubmVsIjoiRU1BSUwiLCJyb2xlIjoiVVNFUiIsImlhdCI6MTc3ODA2Njg2NiwiZXhwIjoxNzc4MDY3NDY2fQ.ar3eYgj3CXZAjs5fbO8L822i4JvwoKZP9DApI7sDYD8"
 }
 
 
 POST http://localhost:3002/auth/login
 Content-Type: application/json
 {
-  "identifier": "admin@gmail.com",
-  "password": "Default$123",
+  "identifier": "Martina@gmail.com",
+  "password": "Default$1234",
   "channel": "EMAIL"
 }
 

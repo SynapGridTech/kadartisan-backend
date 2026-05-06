@@ -6,7 +6,7 @@ import {
   Req,
   UseGuards,
 } from '@nestjs/common';
-import { ApiTags } from '@nestjs/swagger';
+import { ApiTags, ApiBearerAuth } from '@nestjs/swagger';
 import { RequestOtpDto } from './dto/request-otp.dto';
 import { VerifyOtpDto } from './dto/verify-otp.dto';
 import { CompleteRegistrationDto } from './dto/complete-registration.dto';
@@ -59,6 +59,7 @@ export class AuthController {
   }
 
   // 🚪 LOGOUT (Protected)
+  @ApiBearerAuth('access-token')
   @UseGuards(JwtAuthGuard)
   @Post('logout')
   logout(@Req() req) {
