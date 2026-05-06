@@ -98,15 +98,13 @@ export class AuthService {
     }
 
     if (channel === OtpChannel.EMAIL) {
-      // For testing: only send to verified email
-      const testEmail = 'synapgrid@gmail.com';
-      await this.emailService.sendOtpEmail(testEmail, otp);
       console.log(`OTP for ${identifier}: ${otp}`);
     }
 
     return {
       message: 'OTP sent successfully',
       role: selectedRole,
+      otp, // TODO: remove in production
     };
   }
 
@@ -427,12 +425,8 @@ export class AuthService {
 
     // 🔥 SEND OTP HERE
     if (channel === 'EMAIL') {
-      // For testing: only send to verified email
-      const testEmail = 'synapgrid@gmail.com';
-      await this.emailService.sendOtpEmail(testEmail, otp);
       console.log(`OTP for ${user.email}: ${otp}`);
     } else {
-      // call your SMS service
       console.log(`OTP for ${user.phoneNumber}: ${otp}`);
     }
 
