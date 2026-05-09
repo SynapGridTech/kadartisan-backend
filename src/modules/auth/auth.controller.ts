@@ -15,6 +15,7 @@ import { LoginDto } from '../user/dto/login.dto';
 import { JwtAuthGuard } from 'src/common/guards/jwt-auth.guard';
 import { ResetPasswordDto } from './dto/reset-password.dto';
 import { RequestPasswordResetDto } from './dto/request-password-reset.dto';
+import { CreateAppealDto } from './dto/create-appeal.dto';
 
 @ApiTags('Authentication')
 @Controller('auth')
@@ -22,7 +23,6 @@ export class AuthController {
   constructor(private readonly authService: AuthService) {}
 
     //__________ REQUEST OTP ________________________
-
   @Post('request-otp')
   @ApiOperation({ summary: 'Request OTP for registration or login' })
   @ApiResponse({ status: 200, description: 'OTP generated successfully' })
@@ -31,7 +31,6 @@ export class AuthController {
   }
 
     //__________ VERIFY OTP ________________________
-
   @Post('verify-otp')
   @ApiOperation({ summary: 'Verify OTP and receive temporary token' })
   public verifyOtp(@Body() dto: VerifyOtpDto) {
@@ -39,7 +38,6 @@ export class AuthController {
   }
 
     //__________ COMPLETE REGISTRATION  ________________________
-
   @Post('complete-registration')
   @ApiOperation({ summary: 'Complete user registration using temp token' })
   public complete(@Body() dto: CompleteRegistrationDto) {
@@ -48,7 +46,6 @@ export class AuthController {
 
   
     //__________ 🔐 LOGIN ________________________
-
   @Post('login')
   @ApiOperation({ summary: 'Authenticate user and receive access & refresh tokens' })
   public async login(@Body() loginDto: LoginDto) {
@@ -58,7 +55,6 @@ export class AuthController {
 
   
     //__________ 🔄 REFRESH TOKEN ________________________
-
   @Post('refresh')
   @ApiOperation({ summary: 'Refresh access token using refresh token' })
   public async refresh(@Body() body: { refreshToken: string }) {
@@ -71,7 +67,6 @@ export class AuthController {
 
   
     //__________ 🚪 LOGOUT (Protected) ________________________
-
   @ApiBearerAuth('access-token')
   @UseGuards(JwtAuthGuard)
   @Post('logout')
@@ -81,7 +76,6 @@ export class AuthController {
   }
 
     //__________ FORGOT PASSWORD ________________________
-
   @Post('forgot-password')
   @ApiOperation({ summary: 'Request password reset OTP' })
   @ApiResponse({ status: 200, description: 'OTP sent if account exists' })
@@ -90,7 +84,6 @@ export class AuthController {
   }
 
     //__________ VERIFY RESET OTP ________________________
-
   @Post('verify-reset-otp')
   @ApiOperation({ summary: 'Verify password reset OTP' })
    verifyResetOtp(@Body() dto: any) {
@@ -98,10 +91,18 @@ export class AuthController {
   }
 
     //__________ RESET PASSWORD  ________________________
-
   @Post('reset-password')
   @ApiOperation({ summary: 'Reset password using reset token' })
    resetPassword(@Body() dto: ResetPasswordDto) {
     return this.authService.resetPassword(dto);
+  }
+
+    //__________ APPEAL SUBMISSION (Public) ________________________
+  @Post('appeal')
+  @ApiOperation({ summary: 'Submit an appeal for a suspended or banned account' })
+  @ApiResponse({ status: 201, description: 'Appeal submitted successfully' })
+  @ApiResponse({ status: 400, description: 'Account not found, not suspended, or appeal already pending' })
+  submitAppeal(@Body() dto: CreateAppealDto) {
+    return this.authService.submitAppeal(dto.identifier, dto.reason);
   }
 }

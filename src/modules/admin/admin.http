@@ -9,7 +9,7 @@ Content-Type: application/json
 
 
 GET http://localhost:3002/admin/users
-Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOjUsImlzVmVyaWZpZWQiOmZhbHNlLCJmdWxsTmFtZSI6IlN5c3RlbSBBZG1pbmlzdHJhdG9yIiwicGhvbmVOdW1iZXIiOiIwODA5OTg3NjU0MyIsInJvbGUiOiJBRE1JTiIsImlhdCI6MTc3NzkxNTk3OSwiZXhwIjoxNzc3OTE2ODc5fQ.pyBAYR2renlxEYsnlmeh_dQEYXGlvtkAvuRsxwY9MnQ
+Authorization: Bearer 
 
 
 GET http://localhost:3002/admin/artisans/pending

@@ -33,6 +33,12 @@ enum ServiceRequestStatus {
   CANCELLED
 }
 
+enum AppealStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
 model User {
   id          Int      @id @default(autoincrement())
   fullName    String
@@ -62,6 +68,7 @@ model User {
   otps Otp[]
   serviceRequests ServiceRequest[] @relation("ServiceRequestCustomer")
   acceptedRequests ServiceRequest[] @relation("ServiceRequestArtisan")
+  appeals Appeal[]
 }
 
 model ArtisanProfile {
@@ -130,6 +137,19 @@ model ServiceRequest {
 }
 
 
+
+model Appeal {
+  id        Int          @id @default(autoincrement())
+  userId    Int          @unique
+  user      User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  reason    String
+  status    AppealStatus @default(PENDING)
+  createdAt DateTime     @default(now())
+  updatedAt DateTime     @updatedAt
+
+  @@index([userId])
+  @@index([status])
+}
 
 model Otp {
   id         Int        @id @default(autoincrement())

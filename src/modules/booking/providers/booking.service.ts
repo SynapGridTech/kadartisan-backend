@@ -6,7 +6,7 @@ import { CreateServiceRequestDto } from '../dto/create-service-request.dto';
 export class BookingService {
   constructor(private prisma: PrismaService) {}
 
-  // Create a new service requests
+  //_________________ LOGIC to Create a new service requests
   public async createRequest(userId: number, dto: CreateServiceRequestDto) {
     // Check if user exists
     const user = await this.prisma.user.findUnique({
@@ -58,7 +58,7 @@ export class BookingService {
     };
   }
 
-  // Get service requests with optional filters
+  //_________________LOGIC to Get service requests with optional filters
   public async getRequests(filters?: {
     state?: string;
     skillRequired?: string;
@@ -111,7 +111,7 @@ export class BookingService {
     };
   }
 
-  // Get available service requests for an artisan
+  //________________LOGIC to Get available service requests for an artisan
   public async getAvailableRequests(artisanUserId: number) {
     // Verify user is an approved artisan
     const artisan = await this.prisma.artisanProfile.findUnique({
@@ -176,7 +176,7 @@ export class BookingService {
     };
   }
 
-  // Accept a service request as an artisan
+  //_________________ LOGIC to Accept a service request as an artisan
   public async acceptRequest(artisanUserId: number, requestId: number) {
     // Verify artisan is approved
     const artisanUser = await this.prisma.user.findUnique({

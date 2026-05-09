@@ -17,7 +17,7 @@ export class UsersService {
     });
   }
 
-  //Logic to Get SELF ID 
+  //_______________Logic to Get ALL users (artisans & non-artisans)
   public async getAllUsers() {
     return this.prisma.user.findMany({
       select: {
@@ -45,6 +45,7 @@ export class UsersService {
     });
   }
 
+  //_______________Logic to Get ALL regular users (non-artisans) 
   public async getRegularUsers() {
     return this.prisma.user.findMany({
       where: { role: 'USER' },
@@ -73,6 +74,7 @@ export class UsersService {
     });
   }
 
+  //_______________Logic to Get current authenticated user profile 
   public async getProfileById(userId: number) {
     const user = await this.prisma.user.findUnique({
       where: { id: userId },
@@ -129,7 +131,7 @@ export class UsersService {
     };
   }
 
-  // Logic to fetch a USER by ID 
+  //_______________  Logic to fetch a USER by ID 
   public async getUserById(userId: number) {
     const user = await this.prisma.user.findUnique({
       where: { id: userId },
@@ -187,7 +189,7 @@ export class UsersService {
     };
   }
 
-  // Logic to get a User's STAT
+  //______________ Logic to get a User's STAT
   public async getUserStats(userId: number) {
     const user = await this.prisma.user.findUnique({
       where: { id: userId },

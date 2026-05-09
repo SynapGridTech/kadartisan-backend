@@ -28,7 +28,7 @@ Content-Type: application/json
   "password": "Default$1234",
   "confirmPassword": "Default$1234",
   "role": "USER",
-  "tempToken": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZGVudGlmaWVyIjoiaXNhaGdlZUBnbWFpbC5jb20iLCJjaGFubmVsIjoiRU1BSUwiLCJyb2xlIjoiVVNFUiIsImlhdCI6MTc3ODA2Njg2NiwiZXhwIjoxNzc4MDY3NDY2fQ.ar3eYgj3CXZAjs5fbO8L822i4JvwoKZP9DApI7sDYD8"
+  "tempToken": ""
 }
 
 

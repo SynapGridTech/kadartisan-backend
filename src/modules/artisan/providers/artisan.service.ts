@@ -10,7 +10,7 @@ export class ArtisanService {
     private emailService: EmailService,
   ) {}
 
-  // Create artisan profile after user registration
+  //______________ LOGIC to Create artisan profile after user registration
   public async createProfile(userId: number, dto: CreateArtisanProfileDto) {
     // Check if user exists
     const user = await this.prisma.user.findUnique({
@@ -84,7 +84,7 @@ export class ArtisanService {
     };
   }
 
-  // Get all available skills (for frontend dropdown)
+  //_____________ LOGIC to Get all available skills 
   public async getAllSkills() {
     const skills = await this.prisma.skill.findMany({
       orderBy: {
@@ -108,7 +108,7 @@ export class ArtisanService {
     return { skills: grouped };
   }
 
- //________________ Allow rejected artisan to reapply
+ //________________LOGIC to Allow rejected artisan to reapply
   public async reapplyForArtisan(userId: number, dto: CreateArtisanProfileDto) {
     const user = await this.prisma.user.findUnique({
       where: { id: userId },
@@ -151,7 +151,7 @@ export class ArtisanService {
     return this.createProfile(userId, dto);
   }
 
-  //__________________ Get all approved artisans
+  //__________________ LOGIC to Get all approved artisans
   public async getArtisans() {
     const artisans = await this.prisma.user.findMany({
       where: { role: 'ARTISAN' },
@@ -204,7 +204,7 @@ export class ArtisanService {
     }));
   }
 
-  //__________________ Get all pending artisans
+  //__________________LOGIC to Get all pending artisans
   public async getPendingArtisans() {
     return this.prisma.user.findMany({
       where: {
@@ -229,7 +229,7 @@ export class ArtisanService {
     });
   }
 
-  //__________________ Approve artisan
+  //__________________LOGIC to Approve an artisan
   public async approveArtisan(userId: number) {
     const user = await this.prisma.user.findUnique({
       where: { id: userId },
@@ -283,7 +283,7 @@ export class ArtisanService {
     };
   }
 
-  //__________________ Reject artisan
+  //__________________LOGIC to Reject an artisan
   public async rejectArtisan(userId: number, reason?: string) {
     const user = await this.prisma.user.findUnique({
       where: { id: userId },
@@ -326,7 +326,7 @@ export class ArtisanService {
     };
   }
 
-  //__________________ Search artisans by skill and location
+  //__________________LOGIC to Search artisans by skill and location
   public async searchArtisans(filters: {
     skill?: string;
     state?: string;
@@ -399,8 +399,8 @@ export class ArtisanService {
     };
   }
 
-  //__________________ Get artisan profile by user ID
-  async getProfileByUserId(userId: number) {
+  //__________________LOGIC to Get artisan profile by ID
+  public async getProfileByUserId(userId: number) {
     const profile = await this.prisma.artisanProfile.findUnique({
       where: { userId },
       include: {

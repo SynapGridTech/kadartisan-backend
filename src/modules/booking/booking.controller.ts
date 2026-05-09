@@ -32,8 +32,7 @@ import { Role } from '@prisma/client';
 export class BookingController {
   constructor(private readonly bookingService: BookingService) {}
 
-    //__________ CREATE NEW SERVICE REQUEST (customer) ________________________
-
+  //__________ CREATE NEW SERVICE REQUEST (customer) ________________________
   @Post('request')
   @HttpCode(HttpStatus.CREATED)
   @ApiOperation({ summary: 'Create a new service request' })
@@ -44,8 +43,8 @@ export class BookingController {
     return this.bookingService.createRequest(req.user.id, dto);
   }
 
-    //__________ GET ALL REQUESTS  ________________________
 
+  //__________ GET ALL REQUESTS  ________________________
   @Get('requests')
   @ApiOperation({ summary: 'Get all service requests with optional filters' })
   public async getRequests(
@@ -59,8 +58,7 @@ export class BookingController {
     return this.bookingService.getRequests(filters);
   }
 
-    //__________ GET AVAILABLE SERVICES REQUEST (pendings)________________________
-
+  //__________ GET AVAILABLE SERVICES REQUEST (pendings)________________________
   @Get('requests/available')
   // @UseGuards(JwtAuthGuard, RolesGuard)
   // @Roles(Role.ARTISAN)
@@ -69,8 +67,7 @@ export class BookingController {
     return this.bookingService.getAvailableRequests(req.user.id);
   }
 
-    //__________ACCEPT A REQUEST ________________________
-
+  //__________ACCEPT A REQUEST ________________________
   @Post('request/:id/accept')
   // @UseGuards(JwtAuthGuard, RolesGuard)
   // @Roles(Role.ARTISAN)
