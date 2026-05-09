@@ -32,34 +32,23 @@ import { Role } from '@prisma/client';
 export class BookingController {
   constructor(private readonly bookingService: BookingService) {}
 
+    //__________ CREATE NEW SERVICE REQUEST (customer) ________________________
+
   @Post('request')
   @HttpCode(HttpStatus.CREATED)
   @ApiOperation({ summary: 'Create a new service request' })
-  @ApiResponse({ status: 201, description: 'Service request created successfully' })
-  @ApiResponse({ status: 400, description: 'Bad request - invalid input or user not found' })
-  async createRequest(
+   public async createRequest(
     @Req() req: any,
     @Body() dto: CreateServiceRequestDto,
   ) {
     return this.bookingService.createRequest(req.user.id, dto);
   }
 
+    //__________ GET ALL REQUESTS  ________________________
+
   @Get('requests')
   @ApiOperation({ summary: 'Get all service requests with optional filters' })
-  @ApiResponse({ status: 200, description: 'List of service requests returned' })
-  @ApiBody({
-    description: 'Optional filters for service requests',
-    required: false,
-    schema: {
-      type: 'object',
-      properties: {
-        state: { type: 'string', example: 'Kaduna' },
-        skillRequired: { type: 'string', example: 'Electrician' },
-        status: { type: 'string', example: 'PENDING', enum: ['PENDING', 'MATCHED', 'IN_PROGRESS', 'COMPLETED', 'CANCELLED'] },
-      },
-    },
-  })
-  async getRequests(
+  public async getRequests(
     @Req() req: any,
     @Body() filters?: {
       state?: string;
@@ -70,49 +59,23 @@ export class BookingController {
     return this.bookingService.getRequests(filters);
   }
 
-  @Get('artisans')
-  @ApiOperation({ summary: 'Search approved artisans by skill and location' })
-  @ApiResponse({ status: 200, description: 'List of matching artisans returned' })
-  @ApiBody({
-    description: 'Filters for artisan search',
-    required: false,
-    schema: {
-      type: 'object',
-      properties: {
-        skill: { type: 'string', example: 'Electrician' },
-        serviceLocation: { type: 'string', example: 'Kaduna North' },
-      },
-    },
-  })
-  async searchArtisans(
-    @Req() req: any,
-    @Body() filters: {
-      skill?: string;
-      serviceLocation?: string;
-    },
-  ) {
-    return this.bookingService.searchArtisans(filters);
-  }
+    //__________ GET AVAILABLE SERVICES REQUEST (pendings)________________________
 
   @Get('requests/available')
-  @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles(Role.ARTISAN)
+  // @UseGuards(JwtAuthGuard, RolesGuard)
+  // @Roles(Role.ARTISAN)
   @ApiOperation({ summary: 'Get available service requests for artisans (matching skills or state)' })
-  @ApiResponse({ status: 200, description: 'List of available PENDING requests returned' })
-  @ApiResponse({ status: 403, description: 'Forbidden - user is not an approved artisan' })
-  async getAvailableRequests(@Req() req: any) {
+  public async getAvailableRequests(@Req() req: any) {
     return this.bookingService.getAvailableRequests(req.user.id);
   }
 
+    //__________ACCEPT A REQUEST ________________________
+
   @Post('request/:id/accept')
-  @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles(Role.ARTISAN)
+  // @UseGuards(JwtAuthGuard, RolesGuard)
+  // @Roles(Role.ARTISAN)
   @ApiOperation({ summary: 'Accept a service request as an artisan' })
-  @ApiParam({ name: 'id', description: 'Service request ID', type: 'number', example: 1 })
-  @ApiResponse({ status: 200, description: 'Request accepted successfully - status changed to MATCHED' })
-  @ApiResponse({ status: 400, description: 'Bad request - request not found or already processed' })
-  @ApiResponse({ status: 403, description: 'Forbidden - user is not an approved artisan' })
-  async acceptRequest(
+   public async acceptRequest(
     @Req() req: any,
     @Param('id', ParseIntPipe) requestId: number,
   ) {

@@ -50,7 +50,13 @@ model User {
   failedLoginAttempts Int      @default(0)
   lockUntil           DateTime?
   refreshToken        String?
-  
+
+
+  suspendedUntil      DateTime?
+  suspensionReason    String?
+  bannedAt            DateTime?
+  banReason           String?
+
   createdAt   DateTime @default(now())
   
   otps Otp[]
