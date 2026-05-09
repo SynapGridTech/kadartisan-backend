@@ -12,7 +12,6 @@ import { OtpChannel } from '@prisma/client';
 import { SmsService } from 'src/modules/notification/providers/sms.service';
 import { EmailService } from 'src/modules/notification/providers/email.service';
 import { ResetPasswordDto } from '../dto/reset-password.dto';
-import { User } from 'src/modules/user/entities/user.entity';
 import { securityAlertTemplate } from 'src/common/templates/security-alert.template';
 
 @Injectable()
@@ -255,6 +254,20 @@ export class AuthService {
     if (user.lockUntil && user.lockUntil > new Date()) {
       throw new UnauthorizedException(
         `Account locked. Try again after ${user.lockUntil.toLocaleTimeString()}`,
+      );
+    }
+
+    // 🚨 CHECK IF BANNED
+    if (user.bannedAt) {
+      throw new UnauthorizedException(
+        `Account permanently banned. Reason: ${user.banReason || 'Violation of terms'}`,
+      );
+    }
+
+    // 🚨 CHECK IF SUSPENDED
+    if (user.suspendedUntil && user.suspendedUntil > new Date()) {
+      throw new UnauthorizedException(
+        `Account suspended until ${user.suspendedUntil.toLocaleString()}. Reason: ${user.suspensionReason || 'Policy violation'}`,
       );
     }
 
@@ -509,5 +522,50 @@ export class AuthService {
     });
 
     return { message: 'Password reset successful' };
+  }
+
+  // ========== APPEAL SUBMISSION (Public) ==========
+
+  public async submitAppeal(identifier: string, reason: string) {
+    const user = await this.prisma.user.findFirst({
+      where: {
+        OR: [{ phoneNumber: identifier }, { email: identifier }],
+      },
+    });
+
+    if (!user) {
+      throw new BadRequestException('No account found with this identifier');
+    }
+
+    if (!user.suspendedUntil && !user.bannedAt) {
+      throw new BadRequestException('Your account is not suspended or banned');
+    }
+
+    // Check if there's already a pending appeal
+    const existingAppeal = await this.prisma.appeal.findUnique({
+      where: { userId: user.id },
+    });
+
+    if (existingAppeal) {
+      if (existingAppeal.status === 'PENDING') {
+        throw new BadRequestException('You already have a pending appeal. Please wait for admin review.');
+      }
+      // If rejected, delete old appeal and allow new one
+      await this.prisma.appeal.delete({
+        where: { id: existingAppeal.id },
+      });
+    }
+
+    const appeal = await this.prisma.appeal.create({
+      data: {
+        userId: user.id,
+        reason,
+      },
+    });
+
+    return {
+      message: 'Appeal submitted successfully. Admin will review it shortly.',
+      appealId: appeal.id,
+    };
   }
 }

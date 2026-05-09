@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, UnauthorizedException } from '@nestjs/common';
 import { PassportStrategy } from '@nestjs/passport';
 import { ExtractJwt, Strategy } from 'passport-jwt';
 import { PrismaService } from 'src/database/prisma.service';
@@ -26,8 +26,19 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
       return null;
     }
 
-    console.log('✅ JWT validated for user:', user.fullName, 'Role:', user.role);
+    // 🚨 CHECK IF BANNED
+    if (user.bannedAt) {
+      throw new UnauthorizedException(
+        `Account permanently banned. Reason: ${user.banReason || 'Violation of terms'}`,
+      );
+    }
 
+    // 🚨 CHECK IF SUSPENDED
+    if (user.suspendedUntil && user.suspendedUntil > new Date()) {
+      throw new UnauthorizedException(
+        `Account suspended until ${user.suspendedUntil.toLocaleString()}. Reason: ${user.suspensionReason || 'Policy violation'}`,
+      );
+    }
     // Whatever you return becomes req.user
     return {
       id: payload.sub,

@@ -6,7 +6,7 @@ import { CreateServiceRequestDto } from '../dto/create-service-request.dto';
 export class BookingService {
   constructor(private prisma: PrismaService) {}
 
-  // Create a new service requests
+  //_________________ LOGIC to Create a new service requests
   public async createRequest(userId: number, dto: CreateServiceRequestDto) {
     // Check if user exists
     const user = await this.prisma.user.findUnique({
@@ -58,7 +58,7 @@ export class BookingService {
     };
   }
 
-  // Get service requests with optional filters
+  //_________________LOGIC to Get service requests with optional filters
   public async getRequests(filters?: {
     state?: string;
     skillRequired?: string;
@@ -111,80 +111,7 @@ export class BookingService {
     };
   }
 
-  // Search artisans by skill and location
-  public async searchArtisans(filters: {
-    skill?: string;
-    state?: string;
-    lga?: string;
-  }) {
-    const where: any = {
-      user: {
-        artisanStatus: 'APPROVED',
-      },
-      skills: {
-        some: {},
-      },
-    };
-
-    if (filters.skill) {
-      where.skills = {
-        some: {
-          skill: {
-            name: filters.skill,
-          },
-        },
-      };
-    }
-
-    if (filters.state) {
-      where.state = filters.state;
-    }
-
-    if (filters.lga) {
-      where.lga = filters.lga;
-    }
-
-    const artisans = await this.prisma.artisanProfile.findMany({
-      where,
-      include: {
-        user: {
-          select: {
-            id: true,
-            fullName: true,
-            phoneNumber: true,
-            email: true,
-            role: true,
-          },
-        },
-        skills: {
-          include: {
-            skill: true,
-          },
-        },
-      },
-      orderBy: {
-        createdAt: 'desc',
-      },
-    });
-
-    return {
-      count: artisans.length,
-      artisans: artisans.map((artisan) => ({
-        id: artisan.id,
-        userId: artisan.userId,
-        fullName: artisan.user.fullName,
-        phoneNumber: artisan.user.phoneNumber,
-        email: artisan.user.email,
-        state: artisan.state,
-        lga: artisan.lga,
-        workshopAddress: artisan.workshopAddress,
-        skills: artisan.skills.map((s) => s.skill.name),
-        createdAt: artisan.createdAt,
-      })),
-    };
-  }
-
-  // Get available service requests for an artisan
+  //________________LOGIC to Get available service requests for an artisan
   public async getAvailableRequests(artisanUserId: number) {
     // Verify user is an approved artisan
     const artisan = await this.prisma.artisanProfile.findUnique({
@@ -249,7 +176,7 @@ export class BookingService {
     };
   }
 
-  // Accept a service request as an artisan
+  //_________________ LOGIC to Accept a service request as an artisan
   public async acceptRequest(artisanUserId: number, requestId: number) {
     // Verify artisan is approved
     const artisanUser = await this.prisma.user.findUnique({

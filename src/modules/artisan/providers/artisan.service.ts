@@ -1,14 +1,16 @@
 import { Injectable, BadRequestException, NotFoundException } from '@nestjs/common';
 import { PrismaService } from 'src/database/prisma.service';
+import { EmailService } from 'src/modules/notification/providers/email.service';
 import { CreateArtisanProfileDto } from '../dto/create-artisan-profile.dto';
 
 @Injectable()
 export class ArtisanService {
   constructor(
     private prisma: PrismaService,
+    private emailService: EmailService,
   ) {}
 
-  // Create artisan profile after user registration
+  //______________ LOGIC to Create artisan profile after user registration
   public async createProfile(userId: number, dto: CreateArtisanProfileDto) {
     // Check if user exists
     const user = await this.prisma.user.findUnique({
@@ -82,7 +84,7 @@ export class ArtisanService {
     };
   }
 
-  // Get all available skills (for frontend dropdown)
+  //_____________ LOGIC to Get all available skills 
   public async getAllSkills() {
     const skills = await this.prisma.skill.findMany({
       orderBy: {
@@ -106,7 +108,7 @@ export class ArtisanService {
     return { skills: grouped };
   }
 
- //________________ Allow rejected artisan to reapply
+ //________________LOGIC to Allow rejected artisan to reapply
   public async reapplyForArtisan(userId: number, dto: CreateArtisanProfileDto) {
     const user = await this.prisma.user.findUnique({
       where: { id: userId },
@@ -149,8 +151,256 @@ export class ArtisanService {
     return this.createProfile(userId, dto);
   }
 
-  //__________________ Get artisan profile by user ID
-  async getProfileByUserId(userId: number) {
+  //__________________ LOGIC to Get all approved artisans
+  public async getArtisans() {
+    const artisans = await this.prisma.user.findMany({
+      where: { role: 'ARTISAN' },
+      select: {
+        id: true,
+        fullName: true,
+        email: true,
+        phoneNumber: true,
+        role: true,
+        isVerified: true,
+        artisanStatus: true,
+        artisanApprovedAt: true,
+        artisanRejectionReason: true,
+        createdAt: true,
+        artisanProfile: {
+          include: {
+            skills: {
+              include: {
+                skill: true,
+              },
+            },
+          },
+        },
+      },
+      orderBy: { createdAt: 'desc' },
+    });
+
+    return artisans.map((user) => ({
+      id: user.id,
+      fullName: user.fullName,
+      email: user.email,
+      phoneNumber: user.phoneNumber,
+      role: user.role,
+      isVerified: user.isVerified,
+      artisanStatus: user.artisanStatus,
+      artisanApprovedAt: user.artisanApprovedAt,
+      artisanRejectionReason: user.artisanRejectionReason,
+      createdAt: user.createdAt,
+      artisanProfile: user.artisanProfile
+        ? {
+            id: user.artisanProfile.id,
+            state: user.artisanProfile.state,
+            lga: user.artisanProfile.lga,
+            workshopAddress: user.artisanProfile.workshopAddress,
+            skills: user.artisanProfile.skills.map((s) => s.skill.name),
+            createdAt: user.artisanProfile.createdAt,
+            updatedAt: user.artisanProfile.updatedAt,
+          }
+        : null,
+    }));
+  }
+
+  //__________________LOGIC to Get all pending artisans
+  public async getPendingArtisans() {
+    return this.prisma.user.findMany({
+      where: {
+        artisanStatus: 'PENDING',
+      },
+      select: {
+        id: true,
+        fullName: true,
+        email: true,
+        phoneNumber: true,
+        createdAt: true,
+        artisanProfile: {
+          include: {
+            skills: {
+              include: {
+                skill: true,
+              },
+            },
+          },
+        },
+      },
+    });
+  }
+
+  //__________________LOGIC to Approve an artisan
+  public async approveArtisan(userId: number) {
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+      include: {
+        artisanProfile: {
+          include: {
+            skills: {
+              include: {
+                skill: true,
+              },
+            },
+          },
+        },
+      },
+    });
+
+    if (!user || user.artisanStatus !== 'PENDING') {
+      throw new BadRequestException('Invalid artisan request');
+    }
+
+    const updatedUser = await this.prisma.user.update({
+      where: { id: userId },
+      data: {
+        role: 'ARTISAN',
+        artisanStatus: 'APPROVED',
+        artisanApprovedAt: new Date(),
+      },
+    });
+
+    if (user.email) {
+      try {
+        await this.emailService.sendArtisanApprovalEmail(
+          user.email,
+          user.fullName,
+        );
+      } catch (error) {
+        console.error('Failed to send approval email:', error);
+      }
+    }
+
+    return {
+      message: 'Artisan approved successfully',
+      user: {
+        id: updatedUser.id,
+        fullName: updatedUser.fullName,
+        email: updatedUser.email,
+        phoneNumber: updatedUser.phoneNumber,
+        role: updatedUser.role,
+        artisanStatus: updatedUser.artisanStatus,
+      },
+    };
+  }
+
+  //__________________LOGIC to Reject an artisan
+  public async rejectArtisan(userId: number, reason?: string) {
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+    });
+
+    if (!user || user.artisanStatus !== 'PENDING') {
+      throw new BadRequestException('Invalid artisan request');
+    }
+
+    const updatedUser = await this.prisma.user.update({
+      where: { id: userId },
+      data: {
+        artisanStatus: 'REJECTED',
+        artisanRejectionReason: reason || null,
+      },
+    });
+
+    if (user.email) {
+      try {
+        await this.emailService.sendArtisanRejectionEmail(
+          user.email,
+          user.fullName,
+          reason,
+        );
+      } catch (error) {
+        console.error('Failed to send rejection email:', error);
+      }
+    }
+
+    return {
+      message: 'Artisan rejected successfully',
+      user: {
+        id: updatedUser.id,
+        fullName: updatedUser.fullName,
+        email: updatedUser.email,
+        phoneNumber: updatedUser.phoneNumber,
+        artisanStatus: updatedUser.artisanStatus,
+        rejectionReason: updatedUser.artisanRejectionReason,
+      },
+    };
+  }
+
+  //__________________LOGIC to Search artisans by skill and location
+  public async searchArtisans(filters: {
+    skill?: string;
+    state?: string;
+    lga?: string;
+  }) {
+    const where: any = {
+      user: {
+        artisanStatus: 'APPROVED',
+      },
+      skills: {
+        some: {},
+      },
+    };
+
+    if (filters.skill) {
+      where.skills = {
+        some: {
+          skill: {
+            name: filters.skill,
+          },
+        },
+      };
+    }
+
+    if (filters.state) {
+      where.state = filters.state;
+    }
+
+    if (filters.lga) {
+      where.lga = filters.lga;
+    }
+
+    const artisans = await this.prisma.artisanProfile.findMany({
+      where,
+      include: {
+        user: {
+          select: {
+            id: true,
+            fullName: true,
+            phoneNumber: true,
+            email: true,
+            role: true,
+          },
+        },
+        skills: {
+          include: {
+            skill: true,
+          },
+        },
+      },
+      orderBy: {
+        createdAt: 'desc',
+      },
+    });
+
+    return {
+      count: artisans.length,
+      artisans: artisans.map((artisan) => ({
+        id: artisan.id,
+        userId: artisan.userId,
+        fullName: artisan.user.fullName,
+        phoneNumber: artisan.user.phoneNumber,
+        email: artisan.user.email,
+        state: artisan.state,
+        lga: artisan.lga,
+        workshopAddress: artisan.workshopAddress,
+        skills: artisan.skills.map((s) => s.skill.name),
+        createdAt: artisan.createdAt,
+      })),
+    };
+  }
+
+  //__________________LOGIC to Get artisan profile by ID
+  public async getProfileByUserId(userId: number) {
     const profile = await this.prisma.artisanProfile.findUnique({
       where: { userId },
       include: {

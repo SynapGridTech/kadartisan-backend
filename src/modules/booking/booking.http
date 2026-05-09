@@ -1,7 +1,7 @@
 
 
 POST http://localhost:3002/booking/request
-Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOjgsImlzVmVyaWZpZWQiOnRydWUsImZ1bGxOYW1lIjoiQWxiYW5pIFphcmlhIiwicGhvbmVOdW1iZXIiOiIrMjM0ODA1MzA5MDkxNCIsInJvbGUiOiJVU0VSIiwiaWF0IjoxNzc3ODkwNzc4LCJleHAiOjE3Nzc4OTE2Nzh9.V6rqzBKzeAuk8qQeBUJA9XrbyCnq-TkIed_r5CEvaMY
+Authorization: Bearer 
 Content-Type: application/json
 {
     "title": "Light Problem",
@@ -16,13 +16,13 @@ Content-Type: application/json
 
 
 GET http://localhost:3002/booking/artisans
-Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOjgsImlzVmVyaWZpZWQiOnRydWUsImZ1bGxOYW1lIjoiQWxiYW5pIFphcmlhIiwicGhvbmVOdW1iZXIiOiIrMjM0ODA1MzA5MDkxNCIsInJvbGUiOiJVU0VSIiwiaWF0IjoxNzc3ODkwNzc4LCJleHAiOjE3Nzc4OTE2Nzh9.V6rqzBKzeAuk8qQeBUJA9XrbyCnq-TkIed_r5CEvaMY
+Authorization: Bearer 
 
 ###
 
 # Get available service requests for artisan (requires ARTISAN role + APPROVED status)
 GET http://localhost:3002/booking/requests/available
-Authorization: Bearer <ARTISAN_BEARER_TOKEN>
+Authorization: Bearer 
 
 ###
 

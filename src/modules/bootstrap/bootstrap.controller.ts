@@ -5,14 +5,21 @@ import {
   HttpStatus,
   Post,
 } from '@nestjs/common';
+import { ApiOperation, ApiTags, ApiBody, ApiResponse } from '@nestjs/swagger';
 import * as bcrypt from 'bcrypt';
 import { PrismaService } from 'src/database/prisma.service';
 
+@ApiTags('Bootstrap')
 @Controller('bootstrap')
 export class BootstrapController {
   constructor(private prisma: PrismaService) {}
 
   @Post('admin')
+  @ApiOperation({ summary: 'Create the first admin user (one-time setup)' })
+  @ApiBody({
+    description: 'Admin registration details',
+  })
+ 
   async createAdmin(
     @Body()
     body: {
