@@ -373,7 +373,10 @@ export class AuthService {
       console.log(`OTP for ${user.phoneNumber}: ${otp}`);
     }
 
-    return { message: 'If an account exists, an OTP has been sent.' };
+    return {
+      message: 'If an account exists, an OTP has been sent.',
+      otp, // TODO: remove in production
+    };
   }
 
   public async verifyResetOtp(

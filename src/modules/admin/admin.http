@@ -8,21 +8,34 @@ Content-Type: application/json
 
 
 
-GET http://localhost:3002/admin/users
+GET http://localhost:3002/user/all
 Authorization: Bearer 
 
 
-GET http://localhost:3002/admin/artisans/pending
-
-
-
-PATCH http://localhost:3002/admin/artisans/9/approve
+POST http://localhost:3002/admin/
 Authorization: Bearer 
 
 
-PATCH http://localhost:3002/admin/artisans/9/reject
+
+PATCH http://localhost:3002/artisan/9c60c3cd-af28-405c-9d6e-648a550c2738/approve
+Authorization: Bearer 
+
+
+PATCH http://localhost:3002/artisan/65aa99d3-957d-449e-bbc9-01d2772e4d58/reject
 Authorization: Bearer 
 Content-Type: application/json
 {
-  "reason": "i don't like you dan shehu"
+  "reason": "just testing, Nothing personal"
 }
+
+POST http://localhost:3002/admin/users/39b27863-9df8-49aa-ab9d-b780e42eb61e/suspend
+Authorization:
+Content-Type: application/json
+
+{
+  "days": 10,
+  "reason": "Tried to Bribe the CEO"
+}
+
+POST http://localhost:3002/admin/users/39b27863-9df8-49aa-ab9d-b780e42eb61e/unsuspend
+Authorization: Bearer 

@@ -65,7 +65,7 @@ export class ArtisanController {
 
   //__________ GET PENDING ARTISANS ________________________
   @Get('pending')
-  @UseGuards(RolesGuard)
+  // @UseGuards(RolesGuard)
   @ApiOperation({ summary: 'Get all artisans with pending approval status' })
   @ApiResponse({ status: 200, description: 'List of pending artisans returned' })
   async getPendingArtisans() {
