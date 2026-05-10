@@ -1,6 +1,23 @@
 import { PrismaClient } from '@prisma/client';
+import { PrismaPg } from '@prisma/adapter-pg';
+import { Pool } from 'pg';
+import * as bcrypt from 'bcrypt';
+import 'dotenv/config';
 
-const prisma = new PrismaClient();
+const pool = new Pool({
+  connectionString: process.env.DATABASE_URL,
+  ssl: { rejectUnauthorized: false },
+});
+const adapter = new PrismaPg(pool);
+const prisma = new PrismaClient({ adapter });
+
+// Default admin credentials (overridable via .env)
+const defaultAdmin = {
+  email: process.env.ADMIN_EMAIL,
+  password: process.env.ADMIN_PASSWORD,
+  fullName: process.env.ADMIN_FULL_NAME, 
+  phoneNumber: process.env.ADMIN_PHONE 
+};
 
 // Nigerian artisan skills organized by category
 const skills = [
@@ -19,37 +36,20 @@ const skills = [
   // Electrical & Electronics
   { name: 'Electrical Installation', category: 'Electrical' },
   { name: 'Electrical Repair', category: 'Electrical' },
-  { name: 'Solar Panel Installation', category: 'Electrical' },
-  { name: 'Inverter Installation', category: 'Electrical' },
-  { name: 'Air Conditioner Repair', category: 'Electrical' },
-  { name: 'Generator Repair', category: 'Electrical' },
 
   // Automotive
   { name: 'Mechanic (Auto)', category: 'Automotive' },
-  { name: 'Auto Electrician', category: 'Automotive' },
-  { name: 'Panel Beating', category: 'Automotive' },
-  { name: 'Vehicle Painting', category: 'Automotive' },
-  { name: 'Tire Services', category: 'Automotive' },
-
-  // Home & Kitchen
-  { name: 'Furniture Making', category: 'Home & Kitchen' },
-  { name: 'Upholstery', category: 'Home & Kitchen' },
-  { name: 'Aluminum Fabrication', category: 'Home & Kitchen' },
-  { name: 'Glass Works', category: 'Home & Kitchen' },
-  { name: 'Curtain Making', category: 'Home & Kitchen' },
 
   // Fashion & Textile
   { name: 'Tailoring', category: 'Fashion' },
   { name: 'Fashion Design', category: 'Fashion' },
   { name: 'Shoe Making', category: 'Fashion' },
-  { name: 'Embroidery', category: 'Fashion' },
-  { name: 'Knitting', category: 'Fashion' },
+
 
   // Beauty & Personal Care
   { name: 'Hairdressing', category: 'Beauty' },
   { name: 'Barbing', category: 'Beauty' },
   { name: 'Makeup Artistry', category: 'Beauty' },
-  { name: 'Nail Technician', category: 'Beauty' },
 
   // Technology
   { name: 'Phone Repair', category: 'Technology' },
@@ -60,18 +60,13 @@ const skills = [
   // Agriculture
   { name: 'Farming', category: 'Agriculture' },
   { name: 'Animal Husbandry', category: 'Agriculture' },
-  { name: 'Irrigation Systems', category: 'Agriculture' },
 
   // Metal Works
   { name: 'Blacksmithing', category: 'Metal Works' },
-  { name: 'Gate Making', category: 'Metal Works' },
-  { name: 'Railing Fabrication', category: 'Metal Works' },
 
   // Miscellaneous
-  { name: 'Masonry', category: 'Construction' },
   { name: 'Cleaning Services', category: 'Services' },
-  { name: 'Moving & Hauling', category: 'Services' },
-  { name: 'Gardening & Landscaping', category: 'Services' },
+ 
 ];
 
 // Nigerian States with sample LGAs (focusing on major states)
@@ -94,40 +89,60 @@ const nigerianLocations = [
       'Kubau',
       'Birnin Gwari',
     ],
-  },
-  {
-    state: 'Kano',
-    lgas: [
-      'Kano Municipal',
-      'Dala',
-      'Gwale',
-      'Nassarawa',
-      'Tarauni',
-      'Fagge',
-      'Kumbotso',
-      'Ungogo',
-      'Bichi',
-      'Rano',
-      'Wudil',
-      'Gwarzo',
-    ],
-  },
- 
-  {
-    state: 'Bauchi',
-    lgas: [
-      'Bauchi',
-      'Tafawa Balewa',
-      'Dass',
-      'Toro',
-      'Ningi',
-      'Warji',
-      'Katagum',
-      'Misau',
-      'Azare',
-    ],
-  },
+  }
 ];
+
+async function seedAdmin() {
+  console.log('👤 Seeding default admin...');
+
+  // Validate required env vars up-front
+  const missing = (
+    ['ADMIN_EMAIL', 'ADMIN_PASSWORD', 'ADMIN_FULL_NAME', 'ADMIN_PHONE'] as const
+  ).filter((k) => !process.env[k]);
+  if (missing.length > 0) {
+    throw new Error(
+      `Admin seeding skipped — missing required env var(s): ${missing.join(', ')}`,
+    );
+  }
+
+  const email = defaultAdmin.email as string;
+  const password = defaultAdmin.password as string;
+  const fullName = defaultAdmin.fullName as string;
+  const phoneNumber = defaultAdmin.phoneNumber as string;
+
+  const existing = await prisma.user.findFirst({
+    where: { role: 'ADMIN' },
+    include: { adminProfile: true },
+  });
+
+  if (existing) {
+    console.log(`ℹ️  Admin already exists (${existing.email}). Skipping creation.`);
+    if (!existing.adminProfile) {
+      await prisma.adminProfile.create({ data: { userId: existing.id } });
+      console.log('🔧 Created missing AdminProfile for existing admin.');
+    }
+    return;
+  }
+
+  const hashedPassword = await bcrypt.hash(password, 10);
+
+  await prisma.$transaction(async (tx) => {
+    const adminUser = await tx.user.create({
+      data: {
+        email,
+        phoneNumber,
+        fullName,
+        password: hashedPassword,
+        role: 'ADMIN',
+        isVerified: true,
+      },
+    });
+    await tx.adminProfile.create({ data: { userId: adminUser.id } });
+  });
+
+  console.log(`✅ Default admin created: ${email}`);
+  console.log('   ⚠️  Change the default password via POST /auth/request-password-reset');
+}
 
 async function main() {
   console.log('🌱 Starting seed...');
@@ -142,6 +157,9 @@ async function main() {
     });
   }
   console.log(`✅ Seeded ${skills.length} skills`);
+
+  // Seed default admin
+  await seedAdmin();
 
   // Seed Locations (we'll store these as JSON in the app, not in DB)
   // The LGA data will be used by the frontend for dropdowns

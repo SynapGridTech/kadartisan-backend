@@ -22,12 +22,12 @@ import { CreateAppealDto } from './dto/create-appeal.dto';
 export class AuthController {
   constructor(private readonly authService: AuthService) {}
 
-    //__________ REQUEST OTP ________________________
+  //__________ REQUEST OTP ________________________
   @Post('request-otp')
   @ApiOperation({ summary: 'Request OTP for registration or login' })
   @ApiResponse({ status: 200, description: 'OTP generated successfully' })
   public requestOtp(@Body() dto: RequestOtpDto) {
-    return this.authService.requestOtp(dto.identifier, dto.channel);
+    return this.authService.requestOtp(dto.identifier, dto.channel, dto.role as any);
   }
 
     //__________ VERIFY OTP ________________________

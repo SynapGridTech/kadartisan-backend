@@ -1,4 +1,4 @@
-import { Controller, Get, UseGuards, Req, Param, ParseIntPipe } from '@nestjs/common';
+import { Controller, Get, UseGuards, Req, Param, ParseUUIDPipe } from '@nestjs/common';
 import { ApiTags, ApiBearerAuth, ApiOperation, ApiResponse, ApiParam } from '@nestjs/swagger';
 import { UsersService } from './providers/user.service';
 import { JwtAuthGuard } from 'src/common/guards/jwt-auth.guard';
@@ -41,7 +41,7 @@ export class UserController {
     //__________ROUTE TO GET FULL USERID ________________________
   @Get(':id')
   @ApiOperation({ summary: 'Get full user details by ID (including bookings, jobs & profile)' })
-  public async getUserById(@Param('id', ParseIntPipe) id: number) {
+  public async getUserById(@Param('id', ParseUUIDPipe) id: string) {
     return this.userService.getUserById(id);
   }
 }

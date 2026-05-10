@@ -24,7 +24,6 @@ enum ArtisanStatus {
   REJECTED
 }
 
-
 enum ServiceRequestStatus {
   PENDING
   MATCHED
@@ -33,6 +32,7 @@ enum ServiceRequestStatus {
   CANCELLED
 }
 
+
 enum AppealStatus {
   PENDING
   APPROVED
@@ -40,107 +40,137 @@ enum AppealStatus {
 }
 
 model User {
-  id          Int      @id @default(autoincrement())
+  id          String   @id @default(uuid()) @db.Uuid
   fullName    String
   phoneNumber String   @unique
-  email       String?  @unique   
+  email       String?  @unique
   password    String
   isVerified  Boolean  @default(false)
   role        Role     @default(USER)
 
-  artisanStatus ArtisanStatus?   
-  artisanApprovedAt DateTime?    
-  artisanRejectionReason String?
-  artisanProfile  ArtisanProfile?
-  
-  failedLoginAttempts Int      @default(0)
+  // Security
+  failedLoginAttempts Int       @default(0)
   lockUntil           DateTime?
   refreshToken        String?
 
+  // Moderation
+  suspendedUntil   DateTime?
+  suspensionReason String?
+  bannedAt         DateTime?
+  banReason        String?
 
-  suspendedUntil      DateTime?
-  suspensionReason    String?
-  bannedAt            DateTime?
-  banReason           String?
+  createdAt DateTime @default(now())
 
-  createdAt   DateTime @default(now())
-  
-  otps Otp[]
-  serviceRequests ServiceRequest[] @relation("ServiceRequestCustomer")
-  acceptedRequests ServiceRequest[] @relation("ServiceRequestArtisan")
+  // Role profiles (1:1, at most one of each)
+  adminProfile    AdminProfile?
+  customerProfile CustomerProfile?
+  artisanProfile  ArtisanProfile?
+
+  // Account-level relations
+  otps    Otp[]
   appeals Appeal[]
 }
 
-model ArtisanProfile {
-  id              Int      @id @default(autoincrement())
-  userId          Int      @unique
-  user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  
-  state           String
-  lga             String?
-  workshopAddress String?
-  
-  skills          ArtisanSkill[]
-  
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
+
+model AdminProfile {
+  id        String   @id @default(uuid()) @db.Uuid
+  userId    String   @unique @db.Uuid
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
 
   @@index([userId])
 }
 
+
+model CustomerProfile {
+  id        String   @id @default(uuid()) @db.Uuid
+  userId    String   @unique @db.Uuid
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+
+  serviceRequests ServiceRequest[] @relation("ServiceRequestCustomer")
+
+  @@index([userId])
+}
+
+
+model ArtisanProfile {
+  id              String  @id @default(uuid()) @db.Uuid
+  userId          String  @unique @db.Uuid
+  user            User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  state           String
+  lga             String?
+  workshopAddress String?
+
+  
+  artisanStatus          ArtisanStatus @default(PENDING)
+  artisanApprovedAt      DateTime?
+  artisanRejectionReason String?
+
+  skills           ArtisanSkill[]
+  acceptedRequests ServiceRequest[] @relation("ServiceRequestArtisan")
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([userId])
+  @@index([artisanStatus])
+}
+
 model Skill {
-  id        Int      @id @default(autoincrement())
-  name      String   @unique
-  category  String?
-  artisans  ArtisanSkill[]
+  id       String         @id @default(uuid()) @db.Uuid
+  name     String         @unique
+  category String?
+  artisans ArtisanSkill[]
 
   @@index([name])
 }
 
 model ArtisanSkill {
-  id        Int      @id @default(autoincrement())
-  artisanId Int
+  id        String         @id @default(uuid()) @db.Uuid
+  artisanId String         @db.Uuid
   artisan   ArtisanProfile @relation(fields: [artisanId], references: [id], onDelete: Cascade)
-  skillId   Int
-  skill     Skill  @relation(fields: [skillId], references: [id], onDelete: Cascade)
-  
+  skillId   String         @db.Uuid
+  skill     Skill          @relation(fields: [skillId], references: [id], onDelete: Cascade)
+
   @@unique([artisanId, skillId])
   @@index([artisanId])
   @@index([skillId])
 }
 
+
 model ServiceRequest {
-  id              Int      @id @default(autoincrement())
-  userId          Int
-  user            User     @relation("ServiceRequestCustomer", fields: [userId], references: [id], onDelete: Cascade)
+  id         String          @id @default(uuid()) @db.Uuid
 
-  artisanId       Int?
-  artisan         User?    @relation("ServiceRequestArtisan", fields: [artisanId], references: [id])
+  customerId String          @db.Uuid
+  customer   CustomerProfile @relation("ServiceRequestCustomer", fields: [customerId], references: [id], onDelete: Cascade)
 
-  title           String
-  description     String
-  image           String?
-  state           String
-  lga             String?
-  skillRequired   String   // Primary skill needed (for search)
-  budget          Float?
-  urgency         String?  // 'URGENT', 'STANDARD', 'FLEXIBLE'
-  contactInfo     String?
+  artisanId  String?         @db.Uuid
+  artisan    ArtisanProfile? @relation("ServiceRequestArtisan", fields: [artisanId], references: [id])
 
-  status          ServiceRequestStatus @default(PENDING)
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
+  title         String
+  description   String
+  image         String?
+  state         String
+  lga           String?
+  skillRequired String
+  budget        Float?
+  urgency       String?
+  contactInfo   String?
+
+  status    ServiceRequestStatus @default(PENDING)
+  createdAt DateTime             @default(now())
+  updatedAt DateTime             @updatedAt
 
   @@index([state, skillRequired, status])
-  @@index([userId])
+  @@index([customerId])
   @@index([artisanId])
 }
 
-
-
 model Appeal {
-  id        Int          @id @default(autoincrement())
-  userId    Int          @unique
+  id        String       @id @default(uuid()) @db.Uuid
+  userId    String       @unique @db.Uuid
   user      User         @relation(fields: [userId], references: [id], onDelete: Cascade)
   reason    String
   status    AppealStatus @default(PENDING)
@@ -152,7 +182,7 @@ model Appeal {
 }
 
 model Otp {
-  id         Int        @id @default(autoincrement())
+  id         String     @id @default(uuid()) @db.Uuid
   identifier String
   channel    OtpChannel
   code       String
@@ -160,11 +190,9 @@ model Otp {
   isUsed     Boolean    @default(false)
   createdAt  DateTime   @default(now())
 
-  userId Int?
-  user   User? @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId String? @db.Uuid
+  user   User?   @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([identifier])
   @@index([userId])
 }
-
-

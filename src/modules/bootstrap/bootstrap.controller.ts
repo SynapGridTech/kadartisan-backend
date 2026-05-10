@@ -39,14 +39,23 @@ export class BootstrapController {
 
     const hashedPassword = await bcrypt.hash(body.password, 10);
 
-    const admin = await this.prisma.user.create({
-      data: {
-        email: body.email,
-        password: hashedPassword,
-        fullName: body.fullName,
-        phoneNumber: body.phoneNumber,
-        role: 'ADMIN',
-      },
+    const admin = await this.prisma.$transaction(async (tx) => {
+      const createdAdmin = await tx.user.create({
+        data: {
+          email: body.email,
+          password: hashedPassword,
+          fullName: body.fullName,
+          phoneNumber: body.phoneNumber,
+          role: 'ADMIN',
+          isVerified: true,
+        },
+      });
+
+      await tx.adminProfile.create({
+        data: { userId: createdAdmin.id },
+      });
+
+      return createdAdmin;
     });
 
     return {

@@ -3,31 +3,31 @@ POST http://localhost:3002/auth/request-otp
 Content-Type: application/json
 
 {
-  "identifier": "isahgee@gmail.com",
+  "identifier": "merlik-gh@kadArtisan.com",
   "channel": "EMAIL",
-  "role": "USER"
+  "role": "ARTISAN"
 }
 
 
 POST http://localhost:3002/auth/verify-otp
 Content-Type: application/json
 {
-  "identifier": "isahgee@gmail.com",
-  "otp": "232516",
+  "identifier": "merlik-gh@kadArtisan.com",
+  "otp": "387721",
   "channel": "EMAIL",
-  "role": "USER"
+  "role": "ARTISAN"
 }
 
 
 POST http://localhost:3002/auth/complete-registration
 Content-Type: application/json
 {
-  "fullName": "Isah Aligee",
-  "phoneNumber": "+2348178090940",
-  "email": "isahgee@gmail.com",
-  "password": "Default$1234",
-  "confirmPassword": "Default$1234",
-  "role": "USER",
+  "fullName": "Merlik Ghana",
+  "phoneNumber": "+234-9057-2019",
+  "email": "merlik-gh@kadArtisan.com",
+  "password": "Default$123",
+  "confirmPassword": "Default$123",
+  "role": "ARTISAN",
   "tempToken": ""
 }
 
@@ -35,7 +35,7 @@ Content-Type: application/json
 POST http://localhost:3002/auth/login
 Content-Type: application/json
 {
-  "identifier": "Martina@gmail.com",
+  "identifier": "reecejames@kadArtisan.com",
   "password": "Default$1234",
   "channel": "EMAIL"
 }
@@ -46,15 +46,15 @@ Authorization: Bearer
 POST http://localhost:3002/auth/forgot-password
 Content-Type: application/json
 {
-    "identifier": "synapgrid@gmail.com",
+    "identifier": "joaopedro@kadArtisan.com",
     "channel": "EMAIL"
 }
 
 POST http://localhost:3002/auth/verify-reset-otp
 Content-Type: application/json
 {
-    "identifier": "synapgrid@gmail.com",
-    "otp": "666484",
+    "identifier": "joaopedro@kadArtisan.com",
+    "otp": "809002",
     "channel": "EMAIL"
 }
 
@@ -62,12 +62,6 @@ POST http://localhost:3002/auth/reset-password
 Content-Type: application/json
 {
     "tempToken": "",
-    "newPassword": "Default$123",
-    "confirmPassword": "Default$123"
+    "newPassword": "Default$1234",
+    "confirmPassword": "Default$1234"
 }
-
-// {
-//   "identifier": "admin@gmail.com",
-//   "password": "Default$123",
-//   "channel": "EMAIL"
-// }

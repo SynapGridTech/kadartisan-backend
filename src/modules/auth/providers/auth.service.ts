@@ -12,52 +12,19 @@ import { OtpChannel } from '@prisma/client';
 import { SmsService } from 'src/modules/notification/providers/sms.service';
 import { EmailService } from 'src/modules/notification/providers/email.service';
 import { ResetPasswordDto } from '../dto/reset-password.dto';
-import { securityAlertTemplate } from 'src/common/templates/security-alert.template';
 
 @Injectable()
 export class AuthService {
   constructor(
     private prisma: PrismaService,
-
     private jwtService: JwtService,
-
     private smsService: SmsService,
-
     private emailService: EmailService,
   ) {}
 
   //----------------------------------------
-  //  HELPER Fns
-  private async handleFailedLogin(user: any) {
-    const attempts = user.failedLoginAttempts + 1;
-
-    if (attempts >= 3) {
-      const lockTime = new Date(Date.now() + 15 * 60 * 1000); // 15 minutes
-
-      await this.prisma.user.update({
-        where: { id: user.id },
-        data: {
-          failedLoginAttempts: 0,
-          lockUntil: lockTime,
-        },
-      });
-
-      await this.emailService.sendSecurityAlertEmail(
-        user.email,
-        user.fullName,
-        lockTime,
-      );
-    } else {
-      await this.prisma.user.update({
-        where: { id: user.id },
-        data: {
-          failedLoginAttempts: attempts,
-        },
-      });
-    }
-  }
-
-  //_______________Logic for OTP generation, verification, and user registration/login
+  // OTP: request & verify
+  //----------------------------------------
   public async requestOtp(
     identifier: string,
     channel: OtpChannel,
@@ -65,13 +32,11 @@ export class AuthService {
   ) {
     const selectedRole = role === 'ARTISAN' ? 'ARTISAN' : 'USER';
 
-    const lastOtp = await this.prisma.otp.findFirst({
+    await this.prisma.otp.findFirst({
       where: {
         identifier,
         channel,
-        createdAt: {
-          gte: new Date(Date.now() - 30 * 1000),
-        },
+        createdAt: { gte: new Date(Date.now() - 30 * 1000) },
       },
     });
 
@@ -87,15 +52,9 @@ export class AuthService {
       },
     });
 
-    //  Send OTP based on selected channel
     if (channel === OtpChannel.PHONE) {
-      // await this.smsService.sendSms(
-      //   identifier,
-      //   `Your OTP is ${otp}. It expires in 5 minutes.`,
-      // );
       console.log('OTP generated:', otp);
     }
-
     if (channel === OtpChannel.EMAIL) {
       console.log(`OTP for ${identifier}: ${otp}`);
     }
@@ -107,7 +66,6 @@ export class AuthService {
     };
   }
 
-  //______________ Verify OTP and return a temporary token for registration _________
   public async verifyOtp(
     identifier: string,
     otp: string,
@@ -123,9 +81,7 @@ export class AuthService {
         isUsed: false,
         expiresAt: { gt: new Date() },
       },
-      orderBy: {
-        createdAt: 'desc',
-      },
+      orderBy: { createdAt: 'desc' },
     });
 
     if (!record) {
@@ -144,16 +100,16 @@ export class AuthService {
 
     const tempToken = await this.jwtService.signAsync(
       { identifier, channel, role: selectedRole },
-      {
-        secret: process.env.JWT_TEMP_SECRET,
-        expiresIn: '10m',
-      },
+      { secret: process.env.JWT_TEMP_SECRET, expiresIn: '10m' },
     );
 
     return { tempToken };
   }
 
-  //____________ Complete registration using temp token and user details
+  //----------------------------------------
+  // Registration: creates User + CustomerProfile,
+  // and ArtisanProfile (PENDING) when role = ARTISAN.
+  //----------------------------------------
   public async completeRegistration(dto: any) {
     if (dto.password !== dto.confirmPassword) {
       throw new BadRequestException('Passwords do not match');
@@ -176,49 +132,54 @@ export class AuthService {
     }
 
     const orConditions: any[] = [{ phoneNumber }];
-
-    if (email) {
-      orConditions.push({ email });
-    }
+    if (email) orConditions.push({ email });
 
     const existing = await this.prisma.user.findFirst({
-      where: {
-        OR: orConditions,
-      },
+      where: { OR: orConditions },
     });
-
     if (existing) {
       throw new BadRequestException('User already exists');
     }
 
     const hashedPassword = await bcrypt.hash(dto.password, 10);
-
     const isArtisanRequest = role === 'ARTISAN';
-    
-    console.log('🔍 Registration Debug - Role from token:', role);
-    console.log('🔍 Is Artisan Request:', isArtisanRequest);
 
-    const user = await this.prisma.user.create({
-      data: {
-        fullName: dto.fullName,
-        phoneNumber,
-        email,
-        password: hashedPassword,
-        role: 'USER',
-        isVerified: true,
-        artisanStatus: isArtisanRequest ? 'PENDING' : null,
-      },
+    const user = await this.prisma.$transaction(async (tx) => {
+      const createdUser = await tx.user.create({
+        data: {
+          fullName: dto.fullName,
+          phoneNumber,
+          email,
+          password: hashedPassword,
+          role: 'USER',
+          isVerified: true,
+        },
+      });
+
+      // Every account gets a CustomerProfile so they can request services.
+      await tx.customerProfile.create({
+        data: { userId: createdUser.id },
+      });
+
+      // Artisan applicants also get an ArtisanProfile placeholder with PENDING status.
+      // Note: createProfile endpoint is expected to populate state/lga/skills afterwards.
+      if (isArtisanRequest) {
+        await tx.artisanProfile.create({
+          data: {
+            userId: createdUser.id,
+            state: '',
+            artisanStatus: 'PENDING',
+          },
+        });
+      }
+
+      return createdUser;
     });
-
-    console.log('✅ User created - artisanStatus:', user.artisanStatus);
 
     return {
       accessToken: await this.jwtService.signAsync(
         { sub: user.id, role: user.role },
-        {
-          secret: process.env.JWT_SECRET,
-          expiresIn: '15m',
-        },
+        { secret: process.env.JWT_SECRET, expiresIn: '15m' },
       ),
       message: isArtisanRequest
         ? 'Registration successful. Artisan request pending admin approval.'
@@ -226,7 +187,9 @@ export class AuthService {
     };
   }
 
-  //____________ Logic for User login ________________
+  //----------------------------------------
+  // Login
+  //----------------------------------------
   public async login(
     identifier: string,
     password: string,
@@ -239,7 +202,6 @@ export class AuthService {
         where: { email: identifier },
       });
     }
-
     if (channel === OtpChannel.PHONE) {
       user = await this.prisma.user.findUnique({
         where: { phoneNumber: identifier },
@@ -250,21 +212,18 @@ export class AuthService {
       throw new UnauthorizedException('Invalid credentials');
     }
 
-    // 🚨 CHECK IF LOCKED
     if (user.lockUntil && user.lockUntil > new Date()) {
       throw new UnauthorizedException(
         `Account locked. Try again after ${user.lockUntil.toLocaleTimeString()}`,
       );
     }
 
-    // 🚨 CHECK IF BANNED
     if (user.bannedAt) {
       throw new UnauthorizedException(
         `Account permanently banned. Reason: ${user.banReason || 'Violation of terms'}`,
       );
     }
 
-    // 🚨 CHECK IF SUSPENDED
     if (user.suspendedUntil && user.suspendedUntil > new Date()) {
       throw new UnauthorizedException(
         `Account suspended until ${user.suspendedUntil.toLocaleString()}. Reason: ${user.suspensionReason || 'Policy violation'}`,
@@ -275,20 +234,12 @@ export class AuthService {
 
     if (!match) {
       const attempts = user.failedLoginAttempts + 1;
-
-      // 🔐 If 3 failed attempts → lock account
       if (attempts >= 3) {
-        const lockUntil = new Date(Date.now() + 15 * 60 * 1000); // 15 minutes
-
+        const lockUntil = new Date(Date.now() + 15 * 60 * 1000);
         await this.prisma.user.update({
           where: { id: user.id },
-          data: {
-            failedLoginAttempts: 0,
-            lockUntil,
-          },
+          data: { failedLoginAttempts: 0, lockUntil },
         });
-
-        // 📧 Send security email
         if (user.email) {
           await this.emailService.sendSecurityAlertEmail(
             user.email,
@@ -302,20 +253,14 @@ export class AuthService {
           data: { failedLoginAttempts: attempts },
         });
       }
-
       throw new UnauthorizedException('Invalid credentials');
     }
 
-    // ✅ SUCCESS → RESET FAILED ATTEMPTS
     await this.prisma.user.update({
       where: { id: user.id },
-      data: {
-        failedLoginAttempts: 0,
-        lockUntil: null,
-      },
+      data: { failedLoginAttempts: 0, lockUntil: null },
     });
 
-    // 🔐 Generate Access Token
     const accessToken = await this.jwtService.signAsync(
       {
         sub: user.id,
@@ -324,23 +269,15 @@ export class AuthService {
         phoneNumber: user.phoneNumber,
         role: user.role,
       },
-      {
-        secret: process.env.JWT_SECRET,
-        expiresIn: '15m',
-      },
+      { secret: process.env.JWT_SECRET, expiresIn: '15m' },
     );
 
-    // 🔐 Generate Refresh Token
     const refreshToken = await this.jwtService.signAsync(
       { sub: user.id },
-      {
-        secret: process.env.JWT_REFRESH_SECRET,
-        expiresIn: '7d',
-      },
+      { secret: process.env.JWT_REFRESH_SECRET, expiresIn: '7d' },
     );
 
     const hashedRefreshToken = await bcrypt.hash(refreshToken, 10);
-
     await this.prisma.user.update({
       where: { id: user.id },
       data: { refreshToken: hashedRefreshToken },
@@ -359,28 +296,23 @@ export class AuthService {
     };
   }
 
-  //____________ Logic for refreshing access token using refresh token ________________
-  public async refresh(userId: number, refreshToken: string) {
-    const user = await this.prisma.user.findUnique({
-      where: { id: userId },
-    });
-
+  //----------------------------------------
+  // Refresh / logout
+  //----------------------------------------
+  public async refresh(userId: string, refreshToken: string) {
+    const user = await this.prisma.user.findUnique({ where: { id: userId } });
     if (!user || !user.refreshToken) {
       throw new ForbiddenException('Access denied');
     }
 
     const isMatch = await bcrypt.compare(refreshToken, user.refreshToken);
-
     if (!isMatch) {
       throw new ForbiddenException('Invalid refresh token');
     }
 
     const newAccessToken = await this.jwtService.signAsync(
       { sub: user.id },
-      {
-        secret: process.env.JWT_SECRET,
-        expiresIn: '15m',
-      },
+      { secret: process.env.JWT_SECRET, expiresIn: '15m' },
     );
 
     return { accessToken: newAccessToken };
@@ -396,19 +328,19 @@ export class AuthService {
     }
   }
 
-  //____________Logic for User logout ________________
-  public async logout(userId: number) {
+  public async logout(userId: string) {
     await this.prisma.user.update({
       where: { id: userId },
       data: { refreshToken: null },
     });
-
     return { message: 'User logged out successfully' };
   }
 
+  //----------------------------------------
+  // Password reset
+  //----------------------------------------
   public async requestPasswordReset(identifier: string, channel: OtpChannel) {
     let user;
-
     if (channel === 'EMAIL') {
       user = await this.prisma.user.findUnique({
         where: { email: identifier },
@@ -419,7 +351,6 @@ export class AuthService {
       });
     }
 
-    // Prevent user enumeration
     if (!user) {
       return { message: 'If an account exists, an OTP has been sent.' };
     }
@@ -436,14 +367,16 @@ export class AuthService {
       },
     });
 
-    // 🔥 SEND OTP HERE
     if (channel === 'EMAIL') {
       console.log(`OTP for ${user.email}: ${otp}`);
     } else {
       console.log(`OTP for ${user.phoneNumber}: ${otp}`);
     }
 
-    return { message: 'If an account exists, an OTP has been sent.' };
+    return {
+      message: 'If an account exists, an OTP has been sent.',
+      otp, // TODO: remove in production
+    };
   }
 
   public async verifyResetOtp(
@@ -477,10 +410,7 @@ export class AuthService {
 
     const resetToken = await this.jwtService.signAsync(
       { identifier, channel, type: 'PASSWORD_RESET' },
-      {
-        secret: process.env.JWT_TEMP_SECRET,
-        expiresIn: '10m',
-      },
+      { secret: process.env.JWT_TEMP_SECRET, expiresIn: '10m' },
     );
 
     return { resetToken };
@@ -517,15 +447,16 @@ export class AuthService {
       where: { id: user.id },
       data: {
         password: hashedPassword,
-        refreshToken: null, // force logout everywhere
+        refreshToken: null,
       },
     });
 
     return { message: 'Password reset successful' };
   }
 
-  // ========== APPEAL SUBMISSION (Public) ==========
-
+  //----------------------------------------
+  // Public appeal submission
+  //----------------------------------------
   public async submitAppeal(identifier: string, reason: string) {
     const user = await this.prisma.user.findFirst({
       where: {
@@ -541,16 +472,16 @@ export class AuthService {
       throw new BadRequestException('Your account is not suspended or banned');
     }
 
-    // Check if there's already a pending appeal
     const existingAppeal = await this.prisma.appeal.findUnique({
       where: { userId: user.id },
     });
 
     if (existingAppeal) {
       if (existingAppeal.status === 'PENDING') {
-        throw new BadRequestException('You already have a pending appeal. Please wait for admin review.');
+        throw new BadRequestException(
+          'You already have a pending appeal. Please wait for admin review.',
+        );
       }
-      // If rejected, delete old appeal and allow new one
       await this.prisma.appeal.delete({
         where: { id: existingAppeal.id },
       });

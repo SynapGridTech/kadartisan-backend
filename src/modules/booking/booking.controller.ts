@@ -8,7 +8,7 @@ import {
   HttpCode,
   HttpStatus,
   Param,
-  ParseIntPipe,
+  ParseUUIDPipe,
 } from '@nestjs/common';
 import {
   ApiTags,
@@ -74,7 +74,7 @@ export class BookingController {
   @ApiOperation({ summary: 'Accept a service request as an artisan' })
    public async acceptRequest(
     @Req() req: any,
-    @Param('id', ParseIntPipe) requestId: number,
+    @Param('id', ParseUUIDPipe) requestId: string,
   ) {
     return this.bookingService.acceptRequest(req.user.id, requestId);
   }

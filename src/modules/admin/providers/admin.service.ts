@@ -5,37 +5,8 @@ import { PrismaService } from 'src/database/prisma.service';
 export class AdminService {
   constructor(private prisma: PrismaService) {}
 
-  //Helper FNS 
-private async findUserOrThrow(userId: number) {
-    const user = await this.prisma.user.findUnique({
-      where: { id: userId },
-      select: {
-        id: true,
-        fullName: true,
-        email: true,
-        phoneNumber: true,
-        role: true,
-        suspendedUntil: true,
-        suspensionReason: true,
-        bannedAt: true,
-        banReason: true,
-      },
-    });
-
-    if (!user) {
-      throw new NotFoundException('User not found');
-    }
-
-    if (user.role === 'ADMIN') {
-      throw new BadRequestException('Cannot moderate an admin user');
-    }
-
-    return user;
-  }
-
   // ========== SKILL MANAGEMENT ==========
 
-  //_____________ Logic to get all skills ____________________
   public async getAllSkills() {
     const skills = await this.prisma.skill.findMany({
       orderBy: { category: 'asc' },
@@ -53,7 +24,6 @@ private async findUserOrThrow(userId: number) {
     return { skills: grouped };
   }
 
-  //_____________ Logic to create a skill (ADMINS only)______________
   public async createSkill(name: string, category?: string) {
     const existing = await this.prisma.skill.findUnique({
       where: { name },
@@ -73,9 +43,7 @@ private async findUserOrThrow(userId: number) {
     };
   }
 
-    //_____________ Logic to update a skill (ADMINS only)______________
-
-  public async updateSkill(skillId: number, name?: string, category?: string) {
+  public async updateSkill(skillId: string, name?: string, category?: string) {
     const skill = await this.prisma.skill.findUnique({
       where: { id: skillId },
     });
@@ -107,9 +75,7 @@ private async findUserOrThrow(userId: number) {
     };
   }
 
-  //_____________ Logic to delete a skill (ADMINS only)______________
-
-  public async deleteSkill(skillId: number) {
+  public async deleteSkill(skillId: string) {
     const skill = await this.prisma.skill.findUnique({
       where: { id: skillId },
     });
@@ -129,9 +95,35 @@ private async findUserOrThrow(userId: number) {
   }
 
   // ========== USER MODERATION ==========
-  
-  //_____________ Logic to temporarily suspend (ADMINS only)______________
-  public async suspendUser(userId: number, days: number, reason: string) {
+
+  private async findUserOrThrow(userId: string) {
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+      select: {
+        id: true,
+        fullName: true,
+        email: true,
+        phoneNumber: true,
+        role: true,
+        suspendedUntil: true,
+        suspensionReason: true,
+        bannedAt: true,
+        banReason: true,
+      },
+    });
+
+    if (!user) {
+      throw new NotFoundException('User not found');
+    }
+
+    if (user.role === 'ADMIN') {
+      throw new BadRequestException('Cannot moderate an admin user');
+    }
+
+    return user;
+  }
+
+  public async suspendUser(userId: string, days: number, reason: string) {
     const user = await this.findUserOrThrow(userId);
 
     if (user.bannedAt) {
@@ -160,8 +152,7 @@ private async findUserOrThrow(userId: number) {
     };
   }
 
-    //_____________ Logic to Un-suspend a user (ADMINS only)______________
-  public async unsuspendUser(userId: number) {
+  public async unsuspendUser(userId: string) {
     const user = await this.findUserOrThrow(userId);
 
     if (!user.suspendedUntil) {
@@ -185,8 +176,7 @@ private async findUserOrThrow(userId: number) {
     };
   }
 
-    //_____________ Logic to kickout a user (ADMINS only)______________
-  public async banUser(userId: number, reason: string) {
+  public async banUser(userId: string, reason: string) {
     const user = await this.findUserOrThrow(userId);
 
     if (user.bannedAt) {
@@ -200,9 +190,9 @@ private async findUserOrThrow(userId: number) {
       data: {
         bannedAt,
         banReason: reason,
-        suspendedUntil: null, // clear any existing suspension
+        suspendedUntil: null,
         suspensionReason: null,
-        refreshToken: null, // force logout
+        refreshToken: null,
       },
     });
 
@@ -217,8 +207,7 @@ private async findUserOrThrow(userId: number) {
     };
   }
 
-    //_____________ Logic to return kicked out user(ADMINS only)______________
-  public async unbanUser(userId: number) {
+  public async unbanUser(userId: string) {
     const user = await this.findUserOrThrow(userId);
 
     if (!user.bannedAt) {
@@ -243,7 +232,7 @@ private async findUserOrThrow(userId: number) {
   }
 
   // ========== MODERATION LISTS & APPEALS ==========
-  //_____________ Logic to get a list of suspended users (ADMINS only)______________
+
   public async getSuspendedUsers() {
     const users = await this.prisma.user.findMany({
       where: {
@@ -265,7 +254,6 @@ private async findUserOrThrow(userId: number) {
     return { users, count: users.length };
   }
 
-  //_____________ Logic to get a list of kicked-out users (ADMINS only)______________
   public async getBannedUsers() {
     const users = await this.prisma.user.findMany({
       where: {
@@ -287,7 +275,6 @@ private async findUserOrThrow(userId: number) {
     return { users, count: users.length };
   }
 
-    //_____________ Logic to get a list of Appeals (ADMINS only)______________
   public async getAppeals() {
     const appeals = await this.prisma.appeal.findMany({
       include: {
@@ -311,8 +298,7 @@ private async findUserOrThrow(userId: number) {
     return { appeals, count: appeals.length };
   }
 
-    //_____________ Logic to respond to Appeal (ADMINS only)______________
-  public async respondToAppeal(appealId: number, status: 'APPROVED' | 'REJECTED') {
+  public async respondToAppeal(appealId: string, status: 'APPROVED' | 'REJECTED') {
     const appeal = await this.prisma.appeal.findUnique({
       where: { id: appealId },
       include: {
@@ -335,13 +321,11 @@ private async findUserOrThrow(userId: number) {
       throw new BadRequestException(`Appeal has already been ${appeal.status.toLowerCase()}`);
     }
 
-    // Update appeal status
     await this.prisma.appeal.update({
       where: { id: appealId },
       data: { status },
     });
 
-    // If approved, lift suspension or ban
     if (status === 'APPROVED') {
       await this.prisma.user.update({
         where: { id: appeal.userId },
