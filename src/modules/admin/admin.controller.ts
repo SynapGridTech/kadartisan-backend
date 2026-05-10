@@ -4,7 +4,7 @@ import {
   Delete,
   Get,
   Param,
-  ParseIntPipe,
+  ParseUUIDPipe,
   Patch,
   Post,
   UseGuards,
@@ -57,12 +57,12 @@ export class AdminController {
   //__________________ ROUTE TO UPDATE A PARTICULAR SKILL (ADMIN only)_________________
   @Patch('skills/:id')
   @ApiOperation({ summary: 'Update an existing skill' })
-  @ApiParam({ name: 'id', description: 'Skill ID', type: 'number', example: 1 })
+  @ApiParam({ name: 'id', description: 'Skill ID (UUID)', type: 'string' })
   @ApiResponse({ status: 200, description: 'Skill updated successfully' })
   @ApiResponse({ status: 404, description: 'Skill not found' })
   @ApiResponse({ status: 400, description: 'Skill name already exists' })
   async updateSkill(
-    @Param('id', ParseIntPipe) id: number,
+    @Param('id', ParseUUIDPipe) id: string,
     @Body() dto: UpdateSkillDto,
   ) {
     return this.adminService.updateSkill(id, dto.name, dto.category);
@@ -71,10 +71,10 @@ export class AdminController {
   //__________________ ROUTE TO DELETE A  SKILLS (ADMIN only)_________________
   @Delete('skills/:id')
   @ApiOperation({ summary: 'Delete a skill' })
-  @ApiParam({ name: 'id', description: 'Skill ID', type: 'number', example: 1 })
+  @ApiParam({ name: 'id', description: 'Skill ID (UUID)', type: 'string' })
   @ApiResponse({ status: 200, description: 'Skill deleted successfully' })
   @ApiResponse({ status: 404, description: 'Skill not found' })
-  async deleteSkill(@Param('id', ParseIntPipe) id: number) {
+  async deleteSkill(@Param('id', ParseUUIDPipe) id: string) {
     return this.adminService.deleteSkill(id);
   }
 
@@ -83,12 +83,12 @@ export class AdminController {
   //__________________ ROUTE TO SUSPEND A USER (ADMIN only)_________________
   @Post('users/:id/suspend')
   @ApiOperation({ summary: 'Temporarily suspend a user' })
-  @ApiParam({ name: 'id', description: 'User ID to suspend', type: 'number', example: 5 })
+  @ApiParam({ name: 'id', description: 'User ID (UUID)', type: 'string' })
   @ApiResponse({ status: 200, description: 'User suspended successfully' })
   @ApiResponse({ status: 404, description: 'User not found' })
   @ApiResponse({ status: 400, description: 'User is banned or already suspended' })
   async suspendUser(
-    @Param('id', ParseIntPipe) id: number,
+    @Param('id', ParseUUIDPipe) id: string,
     @Body() dto: SuspendUserDto,
   ) {
     return this.adminService.suspendUser(id, dto.days, dto.reason);
@@ -97,23 +97,23 @@ export class AdminController {
   //__________________ ROUTE TO UN-SUSPEND A USER (ADMIN only)_________________
   @Post('users/:id/unsuspend')
   @ApiOperation({ summary: 'Lift a user suspension' })
-  @ApiParam({ name: 'id', description: 'User ID to unsuspend', type: 'number', example: 5 })
+  @ApiParam({ name: 'id', description: 'User ID (UUID)', type: 'string' })
   @ApiResponse({ status: 200, description: 'User suspension lifted successfully' })
   @ApiResponse({ status: 404, description: 'User not found' })
   @ApiResponse({ status: 400, description: 'User is not suspended' })
-  async unsuspendUser(@Param('id', ParseIntPipe) id: number) {
+  async unsuspendUser(@Param('id', ParseUUIDPipe) id: string) {
     return this.adminService.unsuspendUser(id);
   }
 
   //__________________ ROUTE TO BAN A USER (ADMIN only)_________________
   @Post('users/:id/ban')
   @ApiOperation({ summary: 'Permanently ban a user' })
-  @ApiParam({ name: 'id', description: 'User ID to ban', type: 'number', example: 5 })
+  @ApiParam({ name: 'id', description: 'User ID (UUID)', type: 'string' })
   @ApiResponse({ status: 200, description: 'User banned successfully' })
   @ApiResponse({ status: 404, description: 'User not found' })
   @ApiResponse({ status: 400, description: 'User is already banned or is an admin' })
   async banUser(
-    @Param('id', ParseIntPipe) id: number,
+    @Param('id', ParseUUIDPipe) id: string,
     @Body() dto: BanUserDto,
   ) {
     return this.adminService.banUser(id, dto.reason);
@@ -122,11 +122,11 @@ export class AdminController {
   //__________________ ROUTE TO UN-BAN A USER (ADMIN only)_________________
   @Post('users/:id/unban')
   @ApiOperation({ summary: 'Lift a user ban' })
-  @ApiParam({ name: 'id', description: 'User ID to unban', type: 'number', example: 5 })
+  @ApiParam({ name: 'id', description: 'User ID (UUID)', type: 'string' })
   @ApiResponse({ status: 200, description: 'User ban lifted successfully' })
   @ApiResponse({ status: 404, description: 'User not found' })
   @ApiResponse({ status: 400, description: 'User is not banned' })
-  async unbanUser(@Param('id', ParseIntPipe) id: number) {
+  async unbanUser(@Param('id', ParseUUIDPipe) id: string) {
     return this.adminService.unbanUser(id);
   }
 
@@ -159,12 +159,12 @@ export class AdminController {
   //__________________ ROUTE TO RESPOND TO AN APPEAL (ADMIN only)_________________
   @Post('appeals/:id/respond')
   @ApiOperation({ summary: 'Approve or reject a user appeal' })
-  @ApiParam({ name: 'id', description: 'Appeal ID', type: 'number', example: 1 })
+  @ApiParam({ name: 'id', description: 'Appeal ID (UUID)', type: 'string' })
   @ApiResponse({ status: 200, description: 'Appeal responded to successfully' })
   @ApiResponse({ status: 404, description: 'Appeal not found' })
   @ApiResponse({ status: 400, description: 'Appeal already processed' })
   async respondToAppeal(
-    @Param('id', ParseIntPipe) id: number,
+    @Param('id', ParseUUIDPipe) id: string,
     @Body() dto: RespondAppealDto,
   ) {
     return this.adminService.respondToAppeal(id, dto.status);

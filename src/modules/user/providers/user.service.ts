@@ -17,139 +17,87 @@ export class UsersService {
     });
   }
 
-  //_______________Logic to Get ALL users (artisans & non-artisans)
-  public async getAllUsers() {
-    return this.prisma.user.findMany({
-      select: {
-        id: true,
-        fullName: true,
-        email: true,
-        phoneNumber: true,
-        role: true,
-        isVerified: true,
-        artisanStatus: true,
-        artisanApprovedAt: true,
-        artisanRejectionReason: true,
-        createdAt: true,
-        artisanProfile: {
-          include: {
-            skills: {
-              include: {
-                skill: true,
-              },
-            },
-          },
-        },
-      },
-      orderBy: { createdAt: 'desc' },
-    });
-  }
-
-  //_______________Logic to Get ALL regular users (non-artisans) 
-  public async getRegularUsers() {
-    return this.prisma.user.findMany({
-      where: { role: 'USER' },
-      select: {
-        id: true,
-        fullName: true,
-        email: true,
-        phoneNumber: true,
-        role: true,
-        isVerified: true,
-        artisanStatus: true,
-        artisanApprovedAt: true,
-        artisanRejectionReason: true,
-        createdAt: true,
-        artisanProfile: {
-          include: {
-            skills: {
-              include: {
-                skill: true,
-              },
-            },
-          },
-        },
-      },
-      orderBy: { createdAt: 'desc' },
-    });
-  }
-
-  //_______________Logic to Get current authenticated user profile 
-  public async getProfileById(userId: number) {
-    const user = await this.prisma.user.findUnique({
-      where: { id: userId },
-      select: {
-        id: true,
-        fullName: true,
-        email: true,
-        phoneNumber: true,
-        role: true,
-        isVerified: true,
-        artisanStatus: true,
-        artisanApprovedAt: true,
-        artisanRejectionReason: true,
-        createdAt: true,
-        artisanProfile: {
-          include: {
-            skills: {
-              include: {
-                skill: true,
-              },
-            },
-          },
-        },
-      },
-    });
-
-    if (!user) {
-      throw new NotFoundException('User not found');
-    }
-
-    // Transform the response
-    return {
+  //_______________Logic to shape a user record into a role-aware public response
+  private shapeUser(user: any) {
+    const base = {
       id: user.id,
       fullName: user.fullName,
       email: user.email,
       phoneNumber: user.phoneNumber,
       role: user.role,
       isVerified: user.isVerified,
-      artisanStatus: user.artisanStatus,
-      artisanApprovedAt: user.artisanApprovedAt,
-      artisanRejectionReason: user.artisanRejectionReason,
-      artisanProfile: user.artisanProfile
-        ? {
-            id: user.artisanProfile.id,
-            state: user.artisanProfile.state,
-            lga: user.artisanProfile.lga,
-            workshopAddress: user.artisanProfile.workshopAddress,
-            skills: user.artisanProfile.skills.map((s) => s.skill.name),
-            createdAt: user.artisanProfile.createdAt,
-            updatedAt: user.artisanProfile.updatedAt,
-          }
-        : null,
       createdAt: user.createdAt,
     };
+
+    // Only artisans expose an artisanProfile block.
+    if (user.role === 'ARTISAN' && user.artisanProfile) {
+      return {
+        ...base,
+        artisanProfile: {
+          id: user.artisanProfile.id,
+          state: user.artisanProfile.state,
+          lga: user.artisanProfile.lga,
+          workshopAddress: user.artisanProfile.workshopAddress,
+          artisanStatus: user.artisanProfile.artisanStatus,
+          artisanApprovedAt: user.artisanProfile.artisanApprovedAt,
+          artisanRejectionReason: user.artisanProfile.artisanRejectionReason,
+          skills:
+            user.artisanProfile.skills?.map((s: any) => s.skill.name) ?? [],
+          createdAt: user.artisanProfile.createdAt,
+          updatedAt: user.artisanProfile.updatedAt,
+        },
+      };
+    }
+
+    // USER and ADMIN responses stay lean — no artisan/customer fields.
+    return base;
   }
 
-  //_______________  Logic to fetch a USER by ID 
-  public async getUserById(userId: number) {
+  //_______________Logic to Get ALL users (customers & artisans)
+  public async getAllUsers() {
+    const users = await this.prisma.user.findMany({
+      where: {
+        role: { not: 'ADMIN' },
+      },
+      include: {
+        artisanProfile: {
+          include: {
+            skills: { include: { skill: true } },
+          },
+        },
+      },
+      orderBy: { createdAt: 'desc' },
+    });
+
+    return users.map((user) => this.shapeUser(user));
+  }
+
+  //_______________Logic to Get ALL regular users (non-artisans)
+  public async getRegularUsers() {
+    const users = await this.prisma.user.findMany({
+      where: { role: 'USER' },
+      include: {
+        artisanProfile: {
+          include: {
+            skills: { include: { skill: true } },
+          },
+        },
+      },
+      orderBy: { createdAt: 'desc' },
+    });
+
+    return users.map((user) => this.shapeUser(user));
+  }
+
+  //_______________Logic to Get current authenticated user profile
+  public async getProfileById(userId: string) {
     const user = await this.prisma.user.findUnique({
       where: { id: userId },
       include: {
         artisanProfile: {
           include: {
-            skills: {
-              include: {
-                skill: true,
-              },
-            },
+            skills: { include: { skill: true } },
           },
-        },
-        serviceRequests: {
-          orderBy: { createdAt: 'desc' },
-        },
-        acceptedRequests: {
-          orderBy: { createdAt: 'desc' },
         },
       },
     });
@@ -158,44 +106,60 @@ export class UsersService {
       throw new NotFoundException('User not found');
     }
 
-    return {
-      id: user.id,
-      fullName: user.fullName,
-      email: user.email,
-      phoneNumber: user.phoneNumber,
-      role: user.role,
-      isVerified: user.isVerified,
-      artisanStatus: user.artisanStatus,
-      artisanApprovedAt: user.artisanApprovedAt,
-      artisanRejectionReason: user.artisanRejectionReason,
-      createdAt: user.createdAt,
-      artisanProfile: user.artisanProfile
-        ? {
-            id: user.artisanProfile.id,
-            state: user.artisanProfile.state,
-            lga: user.artisanProfile.lga,
-            workshopAddress: user.artisanProfile.workshopAddress,
-            skills: user.artisanProfile.skills.map((s) => ({
-              id: s.skill.id,
-              name: s.skill.name,
-              category: s.skill.category,
-            })),
-            createdAt: user.artisanProfile.createdAt,
-            updatedAt: user.artisanProfile.updatedAt,
-          }
-        : null,
-      bookings: user.serviceRequests,
-      acceptedJobs: user.acceptedRequests,
-    };
+    return this.shapeUser(user);
+  }
+
+  //_______________ Logic to fetch a USER by ID
+  public async getUserById(userId: string) {
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+      include: {
+        artisanProfile: {
+          include: {
+            skills: { include: { skill: true } },
+            acceptedRequests: { orderBy: { createdAt: 'desc' } },
+          },
+        },
+        customerProfile: {
+          include: {
+            serviceRequests: { orderBy: { createdAt: 'desc' } },
+          },
+        },
+      },
+    });
+
+    if (!user) {
+      throw new NotFoundException('User not found');
+    }
+
+    const base: any = this.shapeUser(user);
+
+    // Only attach the relational collections relevant to the caller's role.
+    if (user.role === 'USER') {
+      base.bookings = user.customerProfile?.serviceRequests ?? [];
+    }
+    if (user.role === 'ARTISAN') {
+      base.acceptedJobs = user.artisanProfile?.acceptedRequests ?? [];
+    }
+
+    return base;
   }
 
   //______________ Logic to get a User's STAT
-  public async getUserStats(userId: number) {
+  public async getUserStats(userId: string) {
     const user = await this.prisma.user.findUnique({
       where: { id: userId },
       include: {
-        serviceRequests: true,
-        acceptedRequests: true,
+        customerProfile: {
+          include: {
+            serviceRequests: true,
+          },
+        },
+        artisanProfile: {
+          include: {
+            acceptedRequests: true,
+          },
+        },
       },
     });
 
@@ -206,26 +170,36 @@ export class UsersService {
     const countByStatus = (requests: any[], status: string) =>
       requests.filter((r) => r.status === status).length;
 
-    return {
+    const result: any = {
       userId: user.id,
       role: user.role,
-      // Customer stats (requests made)
-      requests: {
-        total: user.serviceRequests.length,
-        pending: countByStatus(user.serviceRequests, 'PENDING'),
-        matched: countByStatus(user.serviceRequests, 'MATCHED'),
-        inProgress: countByStatus(user.serviceRequests, 'IN_PROGRESS'),
-        completed: countByStatus(user.serviceRequests, 'COMPLETED'),
-        cancelled: countByStatus(user.serviceRequests, 'CANCELLED'),
-      },
-      // Artisan stats (jobs accepted)
-      jobs: {
-        total: user.acceptedRequests.length,
-        pending: countByStatus(user.acceptedRequests, 'MATCHED'),
-        inProgress: countByStatus(user.acceptedRequests, 'IN_PROGRESS'),
-        completed: countByStatus(user.acceptedRequests, 'COMPLETED'),
-        cancelled: countByStatus(user.acceptedRequests, 'CANCELLED'),
-      },
     };
+
+    // Only customers see request stats.
+    if (user.role === 'USER') {
+      const serviceRequests = user.customerProfile?.serviceRequests ?? [];
+      result.requests = {
+        total: serviceRequests.length,
+        pending: countByStatus(serviceRequests, 'PENDING'),
+        matched: countByStatus(serviceRequests, 'MATCHED'),
+        inProgress: countByStatus(serviceRequests, 'IN_PROGRESS'),
+        completed: countByStatus(serviceRequests, 'COMPLETED'),
+        cancelled: countByStatus(serviceRequests, 'CANCELLED'),
+      };
+    }
+
+    // Only artisans see job stats.
+    if (user.role === 'ARTISAN') {
+      const acceptedRequests = user.artisanProfile?.acceptedRequests ?? [];
+      result.jobs = {
+        total: acceptedRequests.length,
+        pending: countByStatus(acceptedRequests, 'MATCHED'),
+        inProgress: countByStatus(acceptedRequests, 'IN_PROGRESS'),
+        completed: countByStatus(acceptedRequests, 'COMPLETED'),
+        cancelled: countByStatus(acceptedRequests, 'CANCELLED'),
+      };
+    }
+
+    return result;
   }
 }

@@ -9,7 +9,7 @@ import {
   HttpStatus,
   Param,
   Patch,
-  ParseIntPipe,
+  ParseUUIDPipe,
 } from '@nestjs/common';
 import { ApiTags, ApiBearerAuth, ApiOperation, ApiResponse, ApiParam, ApiBody } from '@nestjs/swagger';
 import { ArtisanService } from './providers/artisan.service';
@@ -101,10 +101,10 @@ export class ArtisanController {
   @Patch(':id/approve')
   @UseGuards(RolesGuard)
   @ApiOperation({ summary: 'Approve a pending artisan application' })
-  @ApiParam({ name: 'id', description: 'Artisan user ID', type: 'number', example: 1 })
+  @ApiParam({ name: 'id', description: 'Artisan user ID (UUID)', type: 'string' })
   @ApiResponse({ status: 200, description: 'Artisan approved successfully' })
   @ApiResponse({ status: 400, description: 'Invalid artisan request' })
-  async approveArtisan(@Param('id', ParseIntPipe) id: number) {
+  async approveArtisan(@Param('id', ParseUUIDPipe) id: string) {
     return this.artisanService.approveArtisan(id);
   }
 
@@ -112,10 +112,10 @@ export class ArtisanController {
   @Patch(':id/reject')
   @UseGuards(RolesGuard)
   @ApiOperation({ summary: 'Reject a pending artisan application' })
-  @ApiParam({ name: 'id', description: 'Artisan user ID', type: 'number', example: 1 })
+  @ApiParam({ name: 'id', description: 'Artisan user ID (UUID)', type: 'string' })
   @ApiResponse({ status: 200, description: 'Artisan rejected successfully' })
   @ApiResponse({ status: 400, description: 'Invalid artisan request' })
-  async rejectArtisan(@Param('id', ParseIntPipe) id: number, @Body('reason') reason?: string) {
+  async rejectArtisan(@Param('id', ParseUUIDPipe) id: string, @Body('reason') reason?: string) {
     return this.artisanService.rejectArtisan(id, reason);
   }
 }

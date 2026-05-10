@@ -1,7 +1,7 @@
 POST http://localhost:3002/auth/login
 Content-Type: application/json
 {
-  "identifier": "admin@gmail.com",
+  "identifier": "admin@kadartisan.com",
   "password": "Default$123",
   "channel": "EMAIL"
 }
