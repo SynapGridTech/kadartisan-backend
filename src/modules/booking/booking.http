@@ -1,31 +1,35 @@
 
 
+### Create a service request (client: USER or ARTISAN role)
 POST http://localhost:3002/booking/request
-Authorization: Bearer 
+Authorization: Bearer <CLIENT_BEARER_TOKEN>
 Content-Type: application/json
+
 {
     "title": "Light Problem",
+    "category": "Electrician",
     "description": "I need a good Electrician to fix my house Light",
-    "skillRequired": "Electrician",
-    "serviceLocation": "Kigo Road ",
+    "location": "Kigo Road, Kaduna",
     "budget": 3000,
+    "preferredSkills": ["Electrical", "Wiring"],
     "urgency": "URGENT",
     "contactInfo": "+2348123456789"
 }
 
+###
 
-
-GET http://localhost:3002/booking/artisans
-Authorization: Bearer 
+### Get the current client's own service requests (paginated, optional status filter)
+GET http://localhost:3002/booking/requests?status=OPEN&page=1
+Authorization: Bearer <CLIENT_BEARER_TOKEN>
 
 ###
 
-# Get available service requests for artisan (requires ARTISAN role + APPROVED status)
+### Get available service requests for an artisan (requires ARTISAN role + APPROVED status)
 GET http://localhost:3002/booking/requests/available
-Authorization: Bearer 
+Authorization: Bearer <ARTISAN_BEARER_TOKEN>
 
 ###
 
-# Artisan accepts a service request
-POST http://localhost:3002/booking/request/1/accept
+### Artisan accepts a service request
+POST http://localhost:3002/booking/request/<REQUEST_UUID>/accept
 Authorization: Bearer <ARTISAN_BEARER_TOKEN>
