@@ -2,10 +2,13 @@ import { Controller, Get, UseGuards, Req, Param, ParseUUIDPipe } from '@nestjs/c
 import { ApiTags, ApiBearerAuth, ApiOperation, ApiResponse, ApiParam } from '@nestjs/swagger';
 import { UsersService } from './providers/user.service';
 import { JwtAuthGuard } from 'src/common/guards/jwt-auth.guard';
+import { RolesGuard } from 'src/common/guards/roles.guard';
+import { Roles } from 'src/common/decorators/roles.decorator';
+import { Role } from '@prisma/client';
 
 @ApiTags('User')
 @ApiBearerAuth('access-token')
-@UseGuards(JwtAuthGuard)
+@UseGuards(JwtAuthGuard, RolesGuard)
 @Controller('user')
 export class UserController {
   constructor(private readonly userService: UsersService) {}
@@ -24,15 +27,17 @@ export class UserController {
     return this.userService.getUserStats(req.user.id);
   }
 
-    //__________ROUTE TO GET ALL REGISTERED USERS ________________________
+    //__________ROUTE TO GET ALL REGISTERED USERS (ADMIN only) ________________________
   @Get('all')
+  @Roles(Role.ADMIN)
   @ApiOperation({ summary: 'Get all registered users (customers & artisans)' })
   public async getAllUsers() {
     return this.userService.getAllUsers();
   }
 
-    //__________ROUTE TO GET ALL REGULAR USERS (non-artisans) ________________________
+    //__________ROUTE TO GET ALL REGULAR USERS / CUSTOMERS (ADMIN only) ________________________
   @Get('customers')
+  @Roles(Role.ADMIN)
   @ApiOperation({ summary: 'Get all regular users (non-artisans)' })
   public async getRegularUsers() {
     return this.userService.getRegularUsers();
