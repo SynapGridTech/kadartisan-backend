@@ -21,17 +21,37 @@ export class EmailService {
     });
   }
 
-  // ✅ Generic Mail Sender
+  // ✅ Generic Mail Sender — returns the Ethereal preview URL when available (dev), else null.
   public async sendMail(options: {
     to: string;
     subject: string;
     html: string;
-  }) {
-    await this.transporter.sendMail({
+  }): Promise<string | null> {
+    const info = await this.transporter.sendMail({
       from: process.env.EMAIL_FROM,
       to: options.to,
       subject: options.subject,
       html: options.html,
+    });
+
+    // When using Ethereal (free dev SMTP), no mail is actually delivered —
+    // nodemailer exposes a preview URL to view the captured message instead.
+    const previewUrl = nodemailer.getTestMessageUrl(info);
+    if (previewUrl) {
+      console.log(`📧 Email preview (Ethereal) for "${options.subject}" → ${previewUrl}`);
+    }
+    return previewUrl || null;
+  }
+
+  // ✅ Test Email — used by the mail notification test endpoint
+  public async sendTestEmail(to: string, subject?: string, message?: string) {
+    return this.sendMail({
+      to,
+      subject: subject ?? 'KadArtisan Test Email',
+      html: `<div style="font-family:sans-serif">
+        <h2>KadArtisan mail test ✅</h2>
+        <p>${message ?? 'This is a test email from the KadArtisan notification service.'}</p>
+      </div>`,
     });
   }
 
