@@ -180,8 +180,8 @@ export class UsersService {
       const serviceRequests = user.customerProfile?.serviceRequests ?? [];
       result.requests = {
         total: serviceRequests.length,
-        pending: countByStatus(serviceRequests, 'PENDING'),
-        matched: countByStatus(serviceRequests, 'MATCHED'),
+        open: countByStatus(serviceRequests, 'OPEN'),
+        accepted: countByStatus(serviceRequests, 'ACCEPTED'),
         inProgress: countByStatus(serviceRequests, 'IN_PROGRESS'),
         completed: countByStatus(serviceRequests, 'COMPLETED'),
         cancelled: countByStatus(serviceRequests, 'CANCELLED'),
@@ -193,7 +193,7 @@ export class UsersService {
       const acceptedRequests = user.artisanProfile?.acceptedRequests ?? [];
       result.jobs = {
         total: acceptedRequests.length,
-        pending: countByStatus(acceptedRequests, 'MATCHED'),
+        accepted: countByStatus(acceptedRequests, 'ACCEPTED'),
         inProgress: countByStatus(acceptedRequests, 'IN_PROGRESS'),
         completed: countByStatus(acceptedRequests, 'COMPLETED'),
         cancelled: countByStatus(acceptedRequests, 'CANCELLED'),
