@@ -13,23 +13,17 @@ export class RolesGuard implements CanActivate {
       context.getClass(),
     ]);
 
-    if (!requiredRoles) {
+    if (!requiredRoles || requiredRoles.length === 0) {
       return true; // no role restriction
     }
 
     const { user } = context.switchToHttp().getRequest();
 
-    console.log('🔍 RolesGuard - Required:', requiredRoles, 'User:', user?.fullName, 'User Role:', user?.role);
-
     // If no user or no role, deny access
     if (!user || !user.role) {
-      console.log('❌ Access denied: No user or role');
       return false;
     }
 
-    const hasRole = requiredRoles.includes(user.role);
-    console.log(hasRole ? '✅ Access granted' : '❌ Access denied: Role mismatch');
-    
-    return hasRole;
+    return requiredRoles.includes(user.role);
   }
 }

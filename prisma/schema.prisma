@@ -22,11 +22,12 @@ enum ArtisanStatus {
   PENDING
   APPROVED
   REJECTED
+  ACTIVE
 }
 
 enum ServiceRequestStatus {
-  PENDING
-  MATCHED
+  OPEN
+  ACCEPTED
   IN_PROGRESS
   COMPLETED
   CANCELLED
@@ -35,18 +36,28 @@ enum ServiceRequestStatus {
 
 enum AppealStatus {
   PENDING
+  IN_REVIEW
   APPROVED
   REJECTED
+  DENIED
+}
+
+enum AppealType {
+  SUSPENSION
+  VERIFICATION
+  PAYOUT_HOLD
 }
 
 model User {
-  id          String   @id @default(uuid()) @db.Uuid
-  fullName    String
-  phoneNumber String   @unique
-  email       String?  @unique
-  password    String
-  isVerified  Boolean  @default(false)
-  role        Role     @default(USER)
+  id             String   @id @default(uuid()) @db.Uuid
+  fullName       String
+  phoneNumber    String   @unique
+  phone          String?  // Matches interface optional phone field (syncs with phoneNumber)
+  email          String?  @unique
+  password       String
+  isVerified     Boolean  @default(false)
+  role           Role     @default(USER)
+  profilePicture String?  // Added to match interface
 
   // Security
   failedLoginAttempts Int       @default(0)
@@ -59,6 +70,12 @@ model User {
   bannedAt         DateTime?
   banReason        String?
 
+  // Admin controls (section 4.3)
+  flagged        Boolean   @default(false)
+  flagReason     String?
+  profileVisible Boolean   @default(true)
+  deletedAt      DateTime? // soft delete
+
   createdAt DateTime @default(now())
 
   // Role profiles (1:1, at most one of each)
@@ -69,6 +86,19 @@ model User {
   // Account-level relations
   otps    Otp[]
   appeals Appeal[]
+
+  // Admin surface relations (additive)
+  badges            Badge[]
+  transactions      Transaction[]
+  complaintsFiled   Complaint[]      @relation("ComplaintFiledBy")
+  complaintsAgainst Complaint[]      @relation("ComplaintAgainst")
+  adminNotes        AdminNote[]      @relation("AdminNoteSubject")
+  reviewsAuthored   Review[]         @relation("ReviewAuthor")
+  reviewsReceived   Review[]         @relation("ReviewSubject")
+  posts             Post[]
+  activityEvents    ActivityEvent[]
+  subscriptions     Subscription[]
+  supportTickets    SupportTicket[]
 }
 
 
@@ -95,15 +125,24 @@ model CustomerProfile {
 
 
 model ArtisanProfile {
-  id              String  @id @default(uuid()) @db.Uuid
-  userId          String  @unique @db.Uuid
-  user            User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  id                   String  @id @default(uuid()) @db.Uuid
+  userId               String  @unique @db.Uuid
+  user                 User    @relation(fields: [userId], references: [id], onDelete: Cascade)
 
-  state           String
-  lga             String?
-  workshopAddress String?
+  // Combined location field matching interface
+  location             String?
+  state                String
+  lga                  String?
+  workshopAddress      String?
 
-  
+  // Interface required fields
+  bio                  String?
+  profilePicture       String?
+  verificationDocuments String[]
+  rating               Float   @default(0)
+  completedJobs        Int     @default(0)
+  yearsOfExperience    Int?
+
   artisanStatus          ArtisanStatus @default(PENDING)
   artisanApprovedAt      DateTime?
   artisanRejectionReason String?
@@ -123,6 +162,26 @@ model Skill {
   name     String         @unique
   category String?
   artisans ArtisanSkill[]
+
+  // Admin skills management (section 11) — additive
+  description String?
+  icon        String?
+  status      SkillStatus @default(ACTIVE)
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @default(now()) @updatedAt
+
+  categoryRef   SkillCategory? @relation(fields: [categoryRefId], references: [id])
+  categoryRefId String?        @db.Uuid
+
+  @@index([name])
+  @@index([status])
+}
+
+model SkillCategory {
+  id        String   @id @default(uuid()) @db.Uuid
+  name      String   @unique
+  skills    Skill[]
+  createdAt DateTime @default(now())
 
   @@index([name])
 }
@@ -146,26 +205,40 @@ model ServiceRequest {
   customerId String          @db.Uuid
   customer   CustomerProfile @relation("ServiceRequestCustomer", fields: [customerId], references: [id], onDelete: Cascade)
 
-  artisanId  String?         @db.Uuid
-  artisan    ArtisanProfile? @relation("ServiceRequestArtisan", fields: [artisanId], references: [id])
+  acceptedArtisanId  String?         @db.Uuid  // Matches interface field name
+  acceptedArtisan    ArtisanProfile? @relation("ServiceRequestArtisan", fields: [acceptedArtisanId], references: [id])
 
-  title         String
-  description   String
-  image         String?
-  state         String
-  lga           String?
-  skillRequired String
-  budget        Float?
-  urgency       String?
-  contactInfo   String?
+  // Interface required fields
+  category        String  // Matches interface category field (replaces skillRequired)
+  description     String
+  budget          Float?
+  location        String  // Matches interface location field
+  preferredSkills String[]
+  title           String? // Optional now as per interface structure
+  image           String?
+  state           String?
+  lga             String?
+  urgency         String?
+  contactInfo     String?
 
-  status    ServiceRequestStatus @default(PENDING)
+  status    ServiceRequestStatus @default(OPEN)
   createdAt DateTime             @default(now())
   updatedAt DateTime             @updatedAt
 
-  @@index([state, skillRequired, status])
+  // Admin jobs & escrow management (section 7) — additive
+  jobStatus     JobStatus  @default(PENDING)
+  urgency2      String?    // reserved; existing `urgency` kept for actor flow
+  disputeState  DisputeState @default(NONE)
+  disputeReason String?
+  disputeNotes  DisputeNote[]
+  milestones    Milestone[]
+  escrow        Escrow?
+  transactions  Transaction[] @relation("TransactionJob")
+
+  @@index([location, category, status])
   @@index([customerId])
-  @@index([artisanId])
+  @@index([acceptedArtisanId])
+  @@index([jobStatus])
 }
 
 model Appeal {
@@ -174,11 +247,22 @@ model Appeal {
   user      User         @relation(fields: [userId], references: [id], onDelete: Cascade)
   reason    String
   status    AppealStatus @default(PENDING)
+
+  // Admin appeals workflow (section 9) — additive
+  type         AppealType @default(SUSPENSION)
+  urgent       Boolean    @default(false)
+  responseText String?
+  adminNote    String?
+  escalated    Boolean    @default(false)
+  escalationNote String?
+  decidedAt    DateTime?
+
   createdAt DateTime     @default(now())
   updatedAt DateTime     @updatedAt
 
   @@index([userId])
   @@index([status])
+  @@index([type])
 }
 
 model Otp {
@@ -195,4 +279,529 @@ model Otp {
 
   @@index([identifier])
   @@index([userId])
+}
+
+// =====================================================================
+// ADMIN SURFACE MODELS (additive — power the KadArtisan Admin API)
+// =====================================================================
+
+// ---------- Skills (section 11) ----------
+enum SkillStatus {
+  ACTIVE
+  INACTIVE
+}
+
+// ---------- Verification Badges (section 5) ----------
+enum BadgeType {
+  VERIFIED
+  TOP_ARTISAN
+}
+
+enum BadgeStatus {
+  PENDING
+  ACTIVE
+  REVOKED
+  HELD
+  REJECTED
+}
+
+model Badge {
+  id        String      @id @default(uuid()) @db.Uuid
+  userId    String      @db.Uuid
+  user      User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  type      BadgeType
+  status    BadgeStatus @default(PENDING)
+  note      String?
+  reason    String?
+  awardedAt DateTime?
+  revokedAt DateTime?
+  createdAt DateTime    @default(now())
+  updatedAt DateTime    @updatedAt
+
+  @@index([userId])
+  @@index([status])
+  @@index([type])
+}
+
+// ---------- Transactions & Refunds (section 6) ----------
+enum TransactionType {
+  PAYMENT
+  PAYOUT
+  REFUND
+  DEPOSIT
+  WITHDRAWAL
+  FEE
+}
+
+enum TransactionStatus {
+  PENDING
+  SUCCESS
+  FAILED
+  STUCK
+  REVERSED
+}
+
+model Transaction {
+  id            String            @id @default(uuid()) @db.Uuid
+  reference     String            @unique
+  userId        String?           @db.Uuid
+  user          User?             @relation(fields: [userId], references: [id], onDelete: SetNull)
+  jobId         String?           @db.Uuid
+  job           ServiceRequest?   @relation("TransactionJob", fields: [jobId], references: [id], onDelete: SetNull)
+  type          TransactionType
+  status        TransactionStatus @default(PENDING)
+  amount        Float
+  currency      String            @default("NGN")
+  platformFee   Float             @default(0)
+  gateway       String?
+  description   String?
+  metadata      Json?
+  createdAt     DateTime          @default(now())
+  updatedAt     DateTime          @updatedAt
+
+  refunds Refund[]
+
+  @@index([status])
+  @@index([type])
+  @@index([userId])
+  @@index([reference])
+}
+
+enum RefundStatus {
+  PENDING
+  PROCESSING
+  COMPLETED
+  FAILED
+}
+
+model Refund {
+  id             String        @id @default(uuid()) @db.Uuid
+  transactionId  String        @db.Uuid
+  transaction    Transaction   @relation(fields: [transactionId], references: [id], onDelete: Cascade)
+  amount         Float
+  reason         String
+  status         RefundStatus  @default(PENDING)
+  idempotencyKey String        @unique
+  gatewayRef     String?
+  createdAt      DateTime      @default(now())
+  updatedAt      DateTime      @updatedAt
+
+  @@index([transactionId])
+  @@index([status])
+}
+
+// ---------- Jobs / Escrow / Milestones (section 7) ----------
+enum JobStatus {
+  PENDING
+  IN_PROGRESS
+  COMPLETED
+  CANCELLED
+}
+
+enum DisputeState {
+  NONE
+  OPEN
+  RESOLVED
+}
+
+enum EscrowStatus {
+  HELD
+  RELEASED
+  REFUNDED
+}
+
+model Escrow {
+  id        String       @id @default(uuid()) @db.Uuid
+  jobId     String       @unique @db.Uuid
+  job       ServiceRequest @relation(fields: [jobId], references: [id], onDelete: Cascade)
+  amount    Float
+  status    EscrowStatus @default(HELD)
+  createdAt DateTime     @default(now())
+  updatedAt DateTime     @updatedAt
+
+  @@index([status])
+}
+
+model Milestone {
+  id        String   @id @default(uuid()) @db.Uuid
+  jobId     String   @db.Uuid
+  job       ServiceRequest @relation(fields: [jobId], references: [id], onDelete: Cascade)
+  title     String
+  amount    Float?
+  completed Boolean  @default(false)
+  dueDate   DateTime?
+  createdAt DateTime @default(now())
+
+  @@index([jobId])
+}
+
+model DisputeNote {
+  id        String   @id @default(uuid()) @db.Uuid
+  jobId     String   @db.Uuid
+  job       ServiceRequest @relation(fields: [jobId], references: [id], onDelete: Cascade)
+  content   String
+  authorId  String?  @db.Uuid
+  createdAt DateTime @default(now())
+
+  @@index([jobId])
+}
+
+// ---------- Complaints & Disputes (section 8) ----------
+enum ComplaintStatus {
+  NEW
+  IN_REVIEW
+  ESCALATED
+  RESOLVED
+  CLOSED_INVALID
+}
+
+model Complaint {
+  id           String          @id @default(uuid()) @db.Uuid
+  filedById    String?         @db.Uuid
+  filedBy      User?           @relation("ComplaintFiledBy", fields: [filedById], references: [id], onDelete: SetNull)
+  againstId    String?         @db.Uuid
+  against      User?           @relation("ComplaintAgainst", fields: [againstId], references: [id], onDelete: SetNull)
+  jobId        String?         @db.Uuid
+  subject      String
+  description  String
+  status       ComplaintStatus @default(NEW)
+  escalated    Boolean         @default(false)
+  outcome      String?
+  resolutionNotes String?
+  closeReason  String?
+  createdAt    DateTime        @default(now())
+  updatedAt    DateTime        @updatedAt
+
+  notes   ComplaintNote[]
+  dispute Dispute?
+
+  @@index([status])
+  @@index([filedById])
+  @@index([againstId])
+}
+
+model ComplaintNote {
+  id          String    @id @default(uuid()) @db.Uuid
+  complaintId String    @db.Uuid
+  complaint   Complaint @relation(fields: [complaintId], references: [id], onDelete: Cascade)
+  content     String
+  authorId    String?   @db.Uuid
+  createdAt   DateTime  @default(now())
+
+  @@index([complaintId])
+}
+
+enum DisputeStatus {
+  OPEN
+  RESOLVED
+}
+
+model Dispute {
+  id           String        @id @default(uuid()) @db.Uuid
+  complaintId  String        @unique @db.Uuid
+  complaint    Complaint     @relation(fields: [complaintId], references: [id], onDelete: Cascade)
+  status       DisputeStatus @default(OPEN)
+  frozenAmount Float         @default(0)
+  outcome      String?
+  resolvedAt   DateTime?
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
+
+  evidence DisputeEvidence[]
+  notes    DisputeNoteEntry[]
+
+  @@index([status])
+}
+
+model DisputeEvidence {
+  id        String   @id @default(uuid()) @db.Uuid
+  disputeId String   @db.Uuid
+  dispute   Dispute  @relation(fields: [disputeId], references: [id], onDelete: Cascade)
+  label     String
+  url       String?
+  note      String?
+  createdAt DateTime @default(now())
+
+  @@index([disputeId])
+}
+
+model DisputeNoteEntry {
+  id        String   @id @default(uuid()) @db.Uuid
+  disputeId String   @db.Uuid
+  dispute   Dispute  @relation(fields: [disputeId], references: [id], onDelete: Cascade)
+  content   String
+  authorId  String?  @db.Uuid
+  createdAt DateTime @default(now())
+
+  @@index([disputeId])
+}
+
+// ---------- User sub-tabs (section 4.2) ----------
+model AdminNote {
+  id        String   @id @default(uuid()) @db.Uuid
+  subjectId String   @db.Uuid
+  subject   User     @relation("AdminNoteSubject", fields: [subjectId], references: [id], onDelete: Cascade)
+  authorId  String?  @db.Uuid
+  content   String
+  createdAt DateTime @default(now())
+
+  @@index([subjectId])
+}
+
+model ActivityEvent {
+  id        String   @id @default(uuid()) @db.Uuid
+  userId    String   @db.Uuid
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  type      String
+  text      String
+  createdAt DateTime @default(now())
+
+  @@index([userId])
+}
+
+model Review {
+  id         String   @id @default(uuid()) @db.Uuid
+  authorId   String?  @db.Uuid
+  author     User?    @relation("ReviewAuthor", fields: [authorId], references: [id], onDelete: SetNull)
+  subjectId  String?  @db.Uuid
+  subjectUser User?   @relation("ReviewSubject", fields: [subjectId], references: [id], onDelete: SetNull)
+  jobId      String?  @db.Uuid
+  rating     Int
+  comment    String?
+  createdAt  DateTime @default(now())
+
+  @@index([authorId])
+  @@index([subjectId])
+}
+
+model Post {
+  id        String   @id @default(uuid()) @db.Uuid
+  userId    String   @db.Uuid
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  caption   String?
+  imageUrl  String?
+  createdAt DateTime @default(now())
+
+  @@index([userId])
+}
+
+// ---------- Subscriptions (section 12) ----------
+enum PlanInterval {
+  MONTHLY
+  QUARTERLY
+  YEARLY
+}
+
+enum SubscriptionStatus {
+  ACTIVE
+  CANCELLED
+  EXPIRED
+  PAST_DUE
+}
+
+model SubscriptionPlan {
+  id            String       @id @default(uuid()) @db.Uuid
+  name          String
+  description   String?
+  price         Float
+  interval      PlanInterval @default(MONTHLY)
+  features      String[]
+  jobLimit      Int?
+  archived      Boolean      @default(false)
+  createdAt     DateTime     @default(now())
+  updatedAt     DateTime     @updatedAt
+
+  subscriptions Subscription[]
+
+  @@index([archived])
+}
+
+model Subscription {
+  id        String             @id @default(uuid()) @db.Uuid
+  userId    String             @db.Uuid
+  user      User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+  planId    String             @db.Uuid
+  plan      SubscriptionPlan   @relation(fields: [planId], references: [id])
+  status    SubscriptionStatus @default(ACTIVE)
+  startedAt DateTime           @default(now())
+  expiresAt DateTime?
+  cancelledAt DateTime?
+  createdAt DateTime           @default(now())
+  updatedAt DateTime           @updatedAt
+
+  notes SubscriptionNote[]
+
+  @@index([userId])
+  @@index([planId])
+  @@index([status])
+}
+
+model SubscriptionNote {
+  id             String       @id @default(uuid()) @db.Uuid
+  subscriptionId String       @db.Uuid
+  subscription   Subscription @relation(fields: [subscriptionId], references: [id], onDelete: Cascade)
+  content        String
+  authorId       String?      @db.Uuid
+  createdAt      DateTime     @default(now())
+
+  @@index([subscriptionId])
+}
+
+// ---------- Communications (section 10) ----------
+enum TemplateType {
+  ADMIN
+  SYSTEM
+}
+
+model MessageTemplate {
+  id        String       @id @default(uuid()) @db.Uuid
+  name      String
+  subject   String?
+  body      String
+  channels  String[]
+  type      TemplateType @default(ADMIN)
+  createdAt DateTime     @default(now())
+  updatedAt DateTime     @updatedAt
+
+  @@index([type])
+}
+
+enum MessageDeliveryStatus {
+  QUEUED
+  SENT
+  DELIVERED
+  READ
+  BOUNCED
+  FAILED
+}
+
+model MessageLog {
+  id         String                @id @default(uuid()) @db.Uuid
+  channel    String
+  audience   String?
+  subject    String?
+  body       String?
+  recipients Int                   @default(0)
+  status     MessageDeliveryStatus @default(QUEUED)
+  isTest     Boolean               @default(false)
+  createdAt  DateTime              @default(now())
+
+  @@index([status])
+  @@index([channel])
+}
+
+// ---------- Settings (sections 13, 14, 15) — key/value store ----------
+model Setting {
+  id        String   @id @default(uuid()) @db.Uuid
+  key       String   @unique
+  value     Json
+  updatedAt DateTime @updatedAt
+
+  @@index([key])
+}
+
+enum PaymentGatewayStatus {
+  ACTIVE
+  INACTIVE
+}
+
+model PaymentGateway {
+  id            String               @id @default(uuid()) @db.Uuid
+  name          String               @unique
+  apiKey        String?
+  secretKey     String?
+  merchantEmail String?
+  testMode      Boolean              @default(true)
+  status        PaymentGatewayStatus @default(INACTIVE)
+  createdAt     DateTime             @default(now())
+  updatedAt     DateTime             @updatedAt
+}
+
+// ---------- Security (section 15) ----------
+model AdminSession {
+  id         String   @id @default(uuid()) @db.Uuid
+  adminId    String   @db.Uuid
+  device     String?
+  ip         String?
+  lastActive DateTime @default(now())
+  createdAt  DateTime @default(now())
+
+  @@index([adminId])
+}
+
+model FirewallIp {
+  id        String   @id @default(uuid()) @db.Uuid
+  ip        String   @unique
+  label     String?
+  createdAt DateTime @default(now())
+}
+
+model AuditLog {
+  id        String   @id @default(uuid()) @db.Uuid
+  actorId   String?  @db.Uuid
+  action    String
+  entity    String?
+  entityId  String?
+  metadata  Json?
+  createdAt DateTime @default(now())
+
+  @@index([actorId])
+  @@index([createdAt])
+}
+
+// ---------- FAQs & Support (section 16) ----------
+model Faq {
+  id        String   @id @default(uuid()) @db.Uuid
+  question  String
+  answer    String
+  published Boolean  @default(false)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([published])
+}
+
+model KnowledgeArticle {
+  id        String   @id @default(uuid()) @db.Uuid
+  title     String
+  summary   String?
+  content   String
+  category  String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([category])
+}
+
+enum SupportTicketStatus {
+  OPEN
+  IN_PROGRESS
+  RESOLVED
+}
+
+model SupportTicket {
+  id        String              @id @default(uuid()) @db.Uuid
+  userId    String?             @db.Uuid
+  user      User?               @relation(fields: [userId], references: [id], onDelete: SetNull)
+  subject   String
+  priority  String?
+  status    SupportTicketStatus @default(OPEN)
+  createdAt DateTime            @default(now())
+  updatedAt DateTime            @updatedAt
+
+  messages SupportMessage[]
+
+  @@index([status])
+  @@index([userId])
+}
+
+model SupportMessage {
+  id        String        @id @default(uuid()) @db.Uuid
+  ticketId  String        @db.Uuid
+  ticket    SupportTicket @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+  sender    String // 'admin' | 'user'
+  message   String
+  createdAt DateTime      @default(now())
+
+  @@index([ticketId])
 }

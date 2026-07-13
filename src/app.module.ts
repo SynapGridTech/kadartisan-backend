@@ -15,6 +15,21 @@ import { AdminModule } from './modules/admin/admin.module';
 import { BootstrapModule } from './modules/bootstrap/bootstrap.module';
 import { ArtisanModule } from './modules/artisan/artisan.module';
 import { BookingModule } from './modules/booking/booking.module';
+import { AdminDashboardModule } from './modules/admin-dashboard/admin-dashboard.module';
+import { AdminAnalyticsModule } from './modules/admin-analytics/admin-analytics.module';
+import { AdminUsersModule } from './modules/admin-users/admin-users.module';
+import { AdminBadgesModule } from './modules/admin-badges/admin-badges.module';
+import { AdminTransactionsModule } from './modules/admin-transactions/admin-transactions.module';
+import { AdminJobsModule } from './modules/admin-jobs/admin-jobs.module';
+import { AdminComplaintsModule } from './modules/admin-complaints/admin-complaints.module';
+import { AdminAppealsModule } from './modules/admin-appeals/admin-appeals.module';
+import { AdminSkillsModule } from './modules/admin-skills/admin-skills.module';
+import { AdminCommunicationsModule } from './modules/admin-communications/admin-communications.module';
+import { AdminSubscriptionsModule } from './modules/admin-subscriptions/admin-subscriptions.module';
+import { AdminSettingsModule } from './modules/admin-settings/admin-settings.module';
+import { AdminSecurityModule } from './modules/admin-security/admin-security.module';
+import { AdminSupportModule } from './modules/admin-support/admin-support.module';
+import { PaymentWebhooksModule } from './modules/payment-webhooks/payment-webhooks.module';
 
 const isProd = process.env.NODE_ENV === 'production';
 
@@ -51,6 +66,21 @@ const isProd = process.env.NODE_ENV === 'production';
     BootstrapModule,
     ArtisanModule,
     BookingModule,
+    AdminDashboardModule,
+    AdminAnalyticsModule,
+    AdminUsersModule,
+    AdminBadgesModule,
+    AdminTransactionsModule,
+    AdminJobsModule,
+    AdminComplaintsModule,
+    AdminAppealsModule,
+    AdminSkillsModule,
+    AdminCommunicationsModule,
+    AdminSubscriptionsModule,
+    AdminSettingsModule,
+    AdminSecurityModule,
+    AdminSupportModule,
+    PaymentWebhooksModule,
   ],
   providers: [
     { provide: APP_FILTER, useClass: AllExceptionsFilter },

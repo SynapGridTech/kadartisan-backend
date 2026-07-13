@@ -85,12 +85,12 @@ export class AuthService {
     });
 
     if (!record) {
-      throw new BadRequestException('Invalid or expired OTP');
+      throw new BadRequestException('No active OTP found. Please request a new OTP first.');
     }
 
     const match = await bcrypt.compare(otp, record.code);
     if (!match) {
-      throw new BadRequestException('Invalid OTP');
+      throw new BadRequestException('Incorrect OTP code. Please check and try again.');
     }
 
     await this.prisma.otp.update({
@@ -125,10 +125,13 @@ export class AuthService {
     let phoneNumber: string;
 
     if (channel === 'EMAIL') {
+      // Use email from token to prevent tampering, but if dto.email is provided and matches, use it
+      // This ensures the email in the user record matches what was verified via OTP
       email = identifier;
-      phoneNumber = dto.phoneNumber;
+      phoneNumber = dto.phoneNumber || dto.phone; // Support both phoneNumber and phone fields from request
     } else {
       phoneNumber = identifier;
+      email = dto.email; // If channel is phone, use email from request if provided
     }
 
     const orConditions: any[] = [{ phoneNumber }];
@@ -149,9 +152,13 @@ export class AuthService {
         data: {
           fullName: dto.fullName,
           phoneNumber,
+          phone: phoneNumber, // Keep phone field in sync with phoneNumber
           email,
           password: hashedPassword,
-          role: 'USER',
+          profilePicture: dto.profilePicture, // Save profilePicture from request
+          // Artisan applicants get the ARTISAN role immediately so they can
+          // submit their profile; approval only flips artisanStatus.
+          role: isArtisanRequest ? 'ARTISAN' : 'USER',
           isVerified: true,
         },
       });
@@ -197,19 +204,20 @@ export class AuthService {
   ): Promise<LoginResponseDto> {
     let user;
 
+    // Use findFirst with OR condition to handle both email and phone number queries more robustly
     if (channel === OtpChannel.EMAIL) {
-      user = await this.prisma.user.findUnique({
+      user = await this.prisma.user.findFirst({
         where: { email: identifier },
       });
-    }
-    if (channel === OtpChannel.PHONE) {
-      user = await this.prisma.user.findUnique({
+    } else if (channel === OtpChannel.PHONE) {
+      user = await this.prisma.user.findFirst({
         where: { phoneNumber: identifier },
       });
     }
 
     if (!user) {
-      throw new UnauthorizedException('Invalid credentials');
+      console.log(`Login failed: No user found with identifier ${identifier} and channel ${channel}`);
+      throw new UnauthorizedException('No account found with the provided email/phone number. Please check your login details or register first.');
     }
 
     if (user.lockUntil && user.lockUntil > new Date()) {
@@ -253,7 +261,7 @@ export class AuthService {
           data: { failedLoginAttempts: attempts },
         });
       }
-      throw new UnauthorizedException('Invalid credentials');
+      throw new UnauthorizedException('Incorrect password. Please check your password and try again.');
     }
 
     await this.prisma.user.update({

@@ -53,20 +53,42 @@ export class ArtisanService {
       );
     }
 
+    // Parse location to extract state (for backward compatibility)
+    let state = dto.state;
+    let location = dto.location;
+    
+    if (dto.location && !dto.state) {
+      // Extract state from location string (e.g., "Kaduna North, Kaduna" -> "Kaduna")
+      const locationParts = dto.location.split(',');
+      if (locationParts.length > 1) {
+        state = locationParts[locationParts.length - 1].trim();
+      } else {
+        state = dto.location;
+      }
+    } else if (dto.state && !dto.location) {
+      // Create location string from state
+      location = dto.state;
+    }
+
     // If an empty PENDING profile already exists (created during registration),
     // populate it. Otherwise create it fresh.
     const profile = existing
       ? await this.prisma.artisanProfile.update({
           where: { userId },
           data: {
-            state: dto.state,
-            lga: dto.lga,
+            location,
+            state: state || '',
+            lga: dto.lga || '',
             workshopAddress: dto.workshopAddress,
+            bio: dto.bio,
+            profilePicture: dto.profilePicture,
+            verificationDocuments: dto.verificationDocuments || [],
+            yearsOfExperience: dto.yearsOfExperience,
             skills: {
               deleteMany: {},
               create: skills.map((skill) => ({ skillId: skill.id })),
             },
-          },
+          } as any,
           include: {
             skills: { include: { skill: true } },
           },
@@ -74,13 +96,18 @@ export class ArtisanService {
       : await this.prisma.artisanProfile.create({
           data: {
             userId,
-            state: dto.state,
-            lga: dto.lga,
+            location,
+            state: state || '',
+            lga: dto.lga || '',
             workshopAddress: dto.workshopAddress,
+            bio: dto.bio,
+            profilePicture: dto.profilePicture,
+            verificationDocuments: dto.verificationDocuments || [],
+            yearsOfExperience: dto.yearsOfExperience,
             skills: {
               create: skills.map((skill) => ({ skillId: skill.id })),
             },
-          },
+          } as any,
           include: {
             skills: { include: { skill: true } },
           },
@@ -90,12 +117,12 @@ export class ArtisanService {
       message: 'Artisan profile created successfully. Pending admin approval.',
       profile: {
         id: profile.id,
-        state: profile.state,
-        lga: profile.lga,
-        workshopAddress: profile.workshopAddress,
-        artisanStatus: profile.artisanStatus,
-        skills: profile.skills.map((s) => s.skill.name),
-        createdAt: profile.createdAt,
+        state: (profile as any).state,
+        lga: (profile as any).lga,
+        workshopAddress: (profile as any).workshopAddress,
+        artisanStatus: (profile as any).artisanStatus,
+        skills: (profile as any).skills.map((s: any) => s.skill.name),
+        createdAt: (profile as any).createdAt,
       },
     };
   }
@@ -285,6 +312,7 @@ export class ArtisanService {
     }
 
     return {
+      success: true,
       message: 'Artisan approved successfully',
       user: {
         id: updatedUser.id,
@@ -333,7 +361,9 @@ export class ArtisanService {
     }
 
     return {
+      success: true,
       message: 'Artisan rejected successfully',
+      reason: updatedProfile.artisanRejectionReason ?? undefined,
       user: {
         id: user.id,
         fullName: user.fullName,
@@ -348,8 +378,10 @@ export class ArtisanService {
   //__________________LOGIC to Search artisans by skill and location
   public async searchArtisans(filters: {
     skill?: string;
+    location?: string;
     state?: string;
     lga?: string;
+    page?: number;
   }) {
     const where: any = {
       artisanStatus: 'APPROVED',
@@ -374,26 +406,46 @@ export class ArtisanService {
       where.lga = filters.lga;
     }
 
-    const artisans = await this.prisma.artisanProfile.findMany({
-      where,
-      include: {
-        user: {
-          select: {
-            id: true,
-            fullName: true,
-            phoneNumber: true,
-            email: true,
-            role: true,
+    // Free-text location matches any of state / lga / location.
+    if (filters.location) {
+      where.OR = [
+        { state: { contains: filters.location, mode: 'insensitive' } },
+        { lga: { contains: filters.location, mode: 'insensitive' } },
+        { location: { contains: filters.location, mode: 'insensitive' } },
+      ];
+    }
+
+    const page = filters.page && filters.page > 0 ? filters.page : 1;
+    const pageSize = 10;
+    const skip = (page - 1) * pageSize;
+
+    const [total, artisans] = await this.prisma.$transaction([
+      this.prisma.artisanProfile.count({ where }),
+      this.prisma.artisanProfile.findMany({
+        where,
+        include: {
+          user: {
+            select: {
+              id: true,
+              fullName: true,
+              phoneNumber: true,
+              email: true,
+              role: true,
+            },
           },
+          skills: { include: { skill: true } },
         },
-        skills: { include: { skill: true } },
-      },
-      orderBy: { createdAt: 'desc' },
-    });
+        orderBy: { createdAt: 'desc' },
+        skip,
+        take: pageSize,
+      }),
+    ]);
 
     return {
-      count: artisans.length,
-      artisans: artisans.map((artisan) => ({
+      count: total,
+      page,
+      pageSize,
+      artisans: artisans.map((artisan: any) => ({
         id: artisan.id,
         userId: artisan.userId,
         fullName: artisan.user.fullName,
@@ -401,8 +453,15 @@ export class ArtisanService {
         email: artisan.user.email,
         state: artisan.state,
         lga: artisan.lga,
+        location: artisan.location,
         workshopAddress: artisan.workshopAddress,
-        skills: artisan.skills.map((s) => s.skill.name),
+        bio: artisan.bio,
+        profilePicture: artisan.profilePicture,
+        yearsOfExperience: artisan.yearsOfExperience,
+        verificationDocuments: artisan.verificationDocuments ?? [],
+        rating: artisan.rating,
+        completedJobs: artisan.completedJobs,
+        skills: artisan.skills.map((s: any) => s.skill.name),
         createdAt: artisan.createdAt,
       })),
     };
@@ -421,17 +480,25 @@ export class ArtisanService {
       return null;
     }
 
+    const p = profile as any;
     return {
-      id: profile.id,
-      state: profile.state,
-      lga: profile.lga,
-      workshopAddress: profile.workshopAddress,
-      artisanStatus: profile.artisanStatus,
-      artisanApprovedAt: profile.artisanApprovedAt,
-      artisanRejectionReason: profile.artisanRejectionReason,
-      skills: profile.skills.map((s) => s.skill.name),
-      createdAt: profile.createdAt,
-      updatedAt: profile.updatedAt,
+      id: p.id,
+      state: p.state,
+      lga: p.lga,
+      location: p.location,
+      workshopAddress: p.workshopAddress,
+      bio: p.bio,
+      profilePicture: p.profilePicture,
+      yearsOfExperience: p.yearsOfExperience,
+      verificationDocuments: p.verificationDocuments ?? [],
+      rating: p.rating,
+      completedJobs: p.completedJobs,
+      artisanStatus: p.artisanStatus,
+      artisanApprovedAt: p.artisanApprovedAt,
+      artisanRejectionReason: p.artisanRejectionReason,
+      skills: p.skills.map((s: any) => s.skill.name),
+      createdAt: p.createdAt,
+      updatedAt: p.updatedAt,
     };
   }
 }
