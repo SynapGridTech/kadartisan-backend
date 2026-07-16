@@ -35,10 +35,12 @@ export class EmailHealthIndicator extends HealthIndicator {
       await this.emailService['transporter'].verify();
       return this.getStatus(key, true, { message: 'Email service is operational' });
     } catch (error) {
-      throw new HealthCheckError(
-        'Email check failed',
-        this.getStatus(key, false, { message: 'Email SMTP connection failed', error: error.message })
-      );
+      // Never fail overall health if email service is down - return a warning instead
+      return this.getStatus(key, true, { 
+        message: 'Email service is unavailable, but core application is still operational',
+        warning: true,
+        error: error.message 
+      });
     }
   }
 }
