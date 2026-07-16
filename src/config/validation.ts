@@ -12,5 +12,14 @@ export const envValidationSchema = Joi.object({
   EMAIL_PASS: Joi.string().default('test-pass'),
   EMAIL_FROM: Joi.string().pattern(/^.*<[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}>$|^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/).default('noreply@example.com'),
   BASE_URL: Joi.string().uri().default('http://localhost:3000'),
-  FRONTEND_URL: Joi.string().uri().default('http://localhost:3002'),
+  FRONTEND_URL: Joi.string().custom((value, helpers) => {
+    const urls = value.split(',').map(url => url.trim());
+    for (const url of urls) {
+      const { error } = Joi.string().uri().validate(url);
+      if (error) {
+        return helpers.error('string.uri');
+      }
+    }
+    return value;
+  }).default('http://localhost:3002'),
 });
