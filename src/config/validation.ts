@@ -5,4 +5,12 @@ export const envValidationSchema = Joi.object({
   PORT: Joi.number().default(3000),
   DATABASE_URL: Joi.string().uri().required(),
   LOG_LEVEL: Joi.string().valid('fatal','error','warn','info','debug','trace','silent').default('info'),
+  // Email configuration - optional for local development, required in production
+  EMAIL_HOST: Joi.string().default('smtp.ethereal.email'), // Ethereal is nodemailer's default test SMTP
+  EMAIL_PORT: Joi.number().default(587),
+  EMAIL_USER: Joi.string().default('test-user'),
+  EMAIL_PASS: Joi.string().default('test-pass'),
+  EMAIL_FROM: Joi.string().pattern(/^.*<[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}>$|^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/).default('noreply@example.com'),
+  BASE_URL: Joi.string().uri().default('http://localhost:3000'),
+  FRONTEND_URL: Joi.string().uri().default('http://localhost:3002'),
 });
