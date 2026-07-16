@@ -20,6 +20,8 @@ export class EmailService {
         user: process.env.EMAIL_USER,
         pass: process.env.EMAIL_PASS,
       },
+      // Force IPv4 to avoid Railway IPv6 connectivity issues with Gmail SMTP
+      ...(isGmail && { family: 4 }),
     });
   }
 
