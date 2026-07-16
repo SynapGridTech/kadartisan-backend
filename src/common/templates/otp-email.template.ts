@@ -36,7 +36,13 @@ export const otpEmailTemplate = (otp: string): string => {
                   This code will expire in <strong>5 minutes</strong>.
                 </p>
                 <p style="font-size:12px; color:#9ca3af; margin-top:20px;">
+                  If you did not receive this email in your primary inbox, please check your spam or junk mail folder.
+                </p>
+                <p style="font-size:12px; color:#9ca3af; margin-top:10px;">
                   If you did not request this code, please ignore this email.
+                </p>
+                <p style="font-size:11px; color:#9ca3af; margin-top:30px; padding-top:20px; border-top:1px solid #eee;">
+                  KadArtisan | <a href="{{unsubscribeUrl}}" style="color:#2563eb; text-decoration:none;">Unsubscribe from notifications</a>
                 </p>
               </td>
             </tr>

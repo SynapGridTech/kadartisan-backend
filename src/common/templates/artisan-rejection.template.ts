@@ -63,6 +63,9 @@ export const artisanRejectionTemplate = (fullName: string, reason?: string): str
                 <p style="font-size:12px; color:#9ca3af; margin-top:20px;">
                   If you have questions, please contact our support team.
                 </p>
+                <p style="font-size:11px; color:#9ca3af; margin-top:30px; padding-top:20px; border-top:1px solid #eee;">
+                  KadArtisan | <a href="{{unsubscribeUrl}}" style="color:#2563eb; text-decoration:none;">Unsubscribe from notifications</a>
+                </p>
               </td>
             </tr>
 
