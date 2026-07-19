@@ -1,28 +1,46 @@
-import { IsString, IsNumber, IsOptional, IsArray } from 'class-validator';
+import {
+  IsString,
+  IsNumber,
+  IsOptional,
+  IsArray,
+  IsDateString,
+} from 'class-validator';
 import { ApiProperty } from '@nestjs/swagger';
 
 export class CreateServiceRequestDto {
-  @ApiProperty({ example: 'Electrical Services', description: 'Service category matching interface specification' })
+  @ApiProperty({
+    example: 'Electrical Services',
+    description: 'Service category matching interface specification',
+  })
   @IsString()
   category: string;
 
-  @ApiProperty({ example: 'Need electrician to install new light fixtures in living room' })
+  @ApiProperty({
+    example: 'Need electrician to install new light fixtures in living room',
+  })
   @IsString()
   description: string;
 
-  @ApiProperty({ example: 'Kaduna North, Kaduna', description: 'Location of service request' })
+  @ApiProperty({
+    example: 'Kaduna North, Kaduna',
+    description: 'Location of service request',
+  })
   @IsString()
   location: string;
 
-  @ApiProperty({ example: 5000.0, required: false, description: 'Budget for the service' })
+  @ApiProperty({
+    example: 5000.0,
+    required: false,
+    description: 'Budget for the service',
+  })
   @IsNumber()
   @IsOptional()
   budget?: number;
 
-  @ApiProperty({ 
-    example: ['Electrical', 'Wiring'], 
+  @ApiProperty({
+    example: ['Electrical', 'Wiring'],
     description: 'Array of preferred skills required for this job',
-    required: false 
+    required: false,
   })
   @IsArray()
   @IsString({ each: true })
@@ -39,7 +57,11 @@ export class CreateServiceRequestDto {
   @IsOptional()
   image?: string;
 
-  @ApiProperty({ example: 'URGENT', enum: ['URGENT', 'STANDARD', 'FLEXIBLE'], required: false })
+  @ApiProperty({
+    example: 'URGENT',
+    enum: ['URGENT', 'STANDARD', 'FLEXIBLE'],
+    required: false,
+  })
   @IsString()
   @IsOptional()
   urgency?: string;
@@ -48,4 +70,13 @@ export class CreateServiceRequestDto {
   @IsString()
   @IsOptional()
   contactInfo?: string;
+
+  @ApiProperty({
+    example: '2026-07-20T14:00:00.000Z',
+    required: false,
+    description: 'Preferred/scheduled time for the service (ISO 8601)',
+  })
+  @IsDateString()
+  @IsOptional()
+  scheduledAt?: string;
 }

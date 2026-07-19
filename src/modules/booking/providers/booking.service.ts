@@ -32,12 +32,17 @@ export class BookingService {
       lga: request.lga,
       urgency: request.urgency,
       contactInfo: request.contactInfo,
+      scheduledAt: request.scheduledAt
+        ? request.scheduledAt.toISOString()
+        : null,
       customer: request.customer
         ? {
             id: request.customer.id,
             userId: request.customer.user?.id,
             fullName: request.customer.user?.fullName,
-            phone: request.customer.user?.phone || request.customer.user?.phoneNumber,
+            phone:
+              request.customer.user?.phone ||
+              request.customer.user?.phoneNumber,
             profilePicture: request.customer.user?.profilePicture,
           }
         : null,
@@ -46,7 +51,9 @@ export class BookingService {
             id: request.acceptedArtisan.id,
             userId: request.acceptedArtisan.user?.id,
             fullName: request.acceptedArtisan.user?.fullName,
-            phone: request.acceptedArtisan.user?.phone || request.acceptedArtisan.user?.phoneNumber,
+            phone:
+              request.acceptedArtisan.user?.phone ||
+              request.acceptedArtisan.user?.phoneNumber,
             profilePicture: request.acceptedArtisan.profilePicture,
           }
         : null,
@@ -89,12 +96,19 @@ export class BookingService {
         budget: dto.budget || 0,
         urgency: dto.urgency || '',
         contactInfo: dto.contactInfo || '',
+        scheduledAt: dto.scheduledAt ? new Date(dto.scheduledAt) : null,
       } as any,
       include: {
         customer: {
           include: {
             user: {
-              select: { id: true, fullName: true, phoneNumber: true, phone: true, profilePicture: true },
+              select: {
+                id: true,
+                fullName: true,
+                phoneNumber: true,
+                phone: true,
+                profilePicture: true,
+              },
             },
           },
         },
@@ -140,7 +154,13 @@ export class BookingService {
         acceptedArtisan: {
           include: {
             user: {
-              select: { id: true, fullName: true, phoneNumber: true, phone: true, profilePicture: true },
+              select: {
+                id: true,
+                fullName: true,
+                phoneNumber: true,
+                phone: true,
+                profilePicture: true,
+              },
             },
           },
         },
@@ -348,7 +368,8 @@ export class BookingService {
 
     if (
       !(artisanUser as any).artisanProfile ||
-      ((artisanUser as any).artisanProfile.artisanStatus !== 'APPROVED' && (artisanUser as any).artisanProfile.artisanStatus !== 'ACTIVE')
+      ((artisanUser as any).artisanProfile.artisanStatus !== 'APPROVED' &&
+        (artisanUser as any).artisanProfile.artisanStatus !== 'ACTIVE')
     ) {
       throw new ForbiddenException('Artisan is not approved or active');
     }
@@ -377,14 +398,26 @@ export class BookingService {
         customer: {
           include: {
             user: {
-              select: { id: true, fullName: true, phoneNumber: true, phone: true, profilePicture: true },
+              select: {
+                id: true,
+                fullName: true,
+                phoneNumber: true,
+                phone: true,
+                profilePicture: true,
+              },
             },
           },
         },
         acceptedArtisan: {
           include: {
             user: {
-              select: { id: true, fullName: true, phoneNumber: true, phone: true, profilePicture: true },
+              select: {
+                id: true,
+                fullName: true,
+                phoneNumber: true,
+                phone: true,
+                profilePicture: true,
+              },
             },
           },
         },
@@ -394,6 +427,118 @@ export class BookingService {
     return {
       message: 'Service request accepted successfully',
       request: this.shapeRequest(updated),
+    };
+  }
+
+  //________________ Resolve the artisan profile for a user id (shared helper)
+  private async requireArtisan(artisanUserId: string) {
+    const artisan = await this.prisma.artisanProfile.findUnique({
+      where: { userId: artisanUserId },
+    });
+
+    if (!artisan) {
+      throw new NotFoundException('Artisan profile not found for this account');
+    }
+
+    return artisan;
+  }
+
+  //________________ LOGIC to Save/bookmark a service request (artisan)
+  public async saveRequest(artisanUserId: string, requestId: string) {
+    const artisan = await this.requireArtisan(artisanUserId);
+
+    const request = await this.prisma.serviceRequest.findUnique({
+      where: { id: requestId },
+    });
+
+    if (!request) {
+      throw new NotFoundException('Service request not found');
+    }
+
+    // Idempotent: saving an already-saved request is a no-op success.
+    await this.prisma.savedRequest.upsert({
+      where: {
+        artisanId_requestId: { artisanId: artisan.id, requestId },
+      },
+      create: { artisanId: artisan.id, requestId },
+      update: {},
+    });
+
+    return { message: 'Request saved', requestId };
+  }
+
+  //________________ LOGIC to Remove a saved/bookmarked request (artisan)
+  public async unsaveRequest(artisanUserId: string, requestId: string) {
+    const artisan = await this.requireArtisan(artisanUserId);
+
+    await this.prisma.savedRequest.deleteMany({
+      where: { artisanId: artisan.id, requestId },
+    });
+
+    return { message: 'Request unsaved', requestId };
+  }
+
+  //________________ LOGIC to List an artisan's saved/bookmarked requests
+  public async getSavedRequests(
+    artisanUserId: string,
+    query?: { page?: number },
+  ) {
+    const artisan = await this.requireArtisan(artisanUserId);
+
+    const page = query?.page && query.page > 0 ? query.page : 1;
+    const pageSize = 10;
+    const skip = (page - 1) * pageSize;
+
+    const [total, saved] = await this.prisma.$transaction([
+      this.prisma.savedRequest.count({ where: { artisanId: artisan.id } }),
+      this.prisma.savedRequest.findMany({
+        where: { artisanId: artisan.id },
+        include: {
+          request: {
+            include: {
+              customer: {
+                include: {
+                  user: {
+                    select: {
+                      id: true,
+                      fullName: true,
+                      phoneNumber: true,
+                      phone: true,
+                      profilePicture: true,
+                    },
+                  },
+                },
+              },
+              acceptedArtisan: {
+                include: {
+                  user: {
+                    select: {
+                      id: true,
+                      fullName: true,
+                      phoneNumber: true,
+                      phone: true,
+                      profilePicture: true,
+                    },
+                  },
+                },
+              },
+            },
+          },
+        } as any,
+        orderBy: { createdAt: 'desc' },
+        skip,
+        take: pageSize,
+      }),
+    ]);
+
+    return {
+      count: total,
+      page,
+      pageSize,
+      requests: saved.map((s: any) => ({
+        ...this.shapeRequest(s.request),
+        savedAt: s.createdAt.toISOString(),
+      })),
     };
   }
 }
