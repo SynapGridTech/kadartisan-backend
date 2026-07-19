@@ -20,8 +20,13 @@ export class EmailService {
         user: process.env.EMAIL_USER,
         pass: process.env.EMAIL_PASS,
       },
-      // Force IPv4 to avoid Railway IPv6 connectivity issues with Gmail SMTP
-      ...(isGmail && { family: 4 }),
+      // Force IPv4 to avoid host IPv6 connectivity issues (e.g. Railway has no
+      // outbound IPv6 route, so an AAAA result for the SMTP host fails with
+      // ENETUNREACH). Applied for all hosts, not just Gmail. The global
+      // dns.setDefaultResultOrder('ipv4first') in main.ts is the primary fix;
+      // this is defense in depth at the socket level. Spread because `family`
+      // is not in @types/nodemailer's transport options.
+      ...{ family: 4 },
     });
   }
 
