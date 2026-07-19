@@ -1,3 +1,10 @@
+import { setDefaultResultOrder } from 'node:dns';
+// Prefer IPv4 for all DNS lookups. Some hosts (e.g. Railway) resolve AAAA
+// records for external services like smtp.gmail.com but have no working
+// outbound IPv6 route, which surfaces as `connect ENETUNREACH ...::587`.
+// Resolving IPv4 first avoids attempting the unreachable IPv6 address.
+setDefaultResultOrder('ipv4first');
+
 import { NestFactory, Reflector } from '@nestjs/core';
 import { AppModule } from './app.module';
 import { ValidationPipe } from '@nestjs/common';
