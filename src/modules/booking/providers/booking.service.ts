@@ -223,6 +223,74 @@ export class BookingService {
       requests: requests.map((r) => this.shapeRequest(r)),
     };
   }
+  //________________LOGIC to Get the current artisan's accepted/ongoing/completed jobs
+  public async getArtisanJobs(
+    artisanUserId: string,
+    query?: { status?: string; page?: number },
+  ) {
+    const artisan = await this.prisma.artisanProfile.findUnique({
+      where: { userId: artisanUserId },
+    });
+
+    if (!artisan) {
+      throw new NotFoundException('Artisan profile not found for this account');
+    }
+
+    const where: any = { acceptedArtisanId: artisan.id };
+    if (query?.status) {
+      where.status = query.status;
+    }
+
+    const page = query?.page && query.page > 0 ? query.page : 1;
+    const pageSize = 10;
+    const skip = (page - 1) * pageSize;
+
+    const [total, requests] = await this.prisma.$transaction([
+      this.prisma.serviceRequest.count({ where }),
+      this.prisma.serviceRequest.findMany({
+        where,
+        include: {
+          customer: {
+            include: {
+              user: {
+                select: {
+                  id: true,
+                  fullName: true,
+                  phoneNumber: true,
+                  phone: true,
+                  profilePicture: true,
+                },
+              },
+            },
+          },
+          acceptedArtisan: {
+            include: {
+              user: {
+                select: {
+                  id: true,
+                  fullName: true,
+                  phoneNumber: true,
+                  phone: true,
+                  profilePicture: true,
+                },
+              },
+            },
+          },
+        } as any,
+        orderBy: { updatedAt: 'desc' },
+        skip,
+        take: pageSize,
+      }),
+    ]);
+
+    return {
+      count: total,
+      page,
+      pageSize,
+      requests: requests.map((r) => this.shapeRequest(r)),
+    };
+  }
+
   public async getAvailableRequests(artisanUserId: string) {
     const artisan = await this.prisma.artisanProfile.findUnique({
       where: { userId: artisanUserId },

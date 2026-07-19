@@ -54,6 +54,17 @@ export class BookingController {
     return this.bookingService.getMyRequests(req.user.id, query);
   }
 
+  //__________ GET CURRENT ARTISAN'S ACCEPTED/ONGOING/COMPLETED JOBS ________________________
+  @Get('artisan/jobs')
+  @Roles(Role.ARTISAN)
+  @ApiOperation({ summary: "Get the current artisan's accepted, ongoing and completed jobs" })
+  public async getArtisanJobs(
+    @Req() req: any,
+    @Query() query: GetRequestsQueryDto,
+  ) {
+    return this.bookingService.getArtisanJobs(req.user.id, query);
+  }
+
   //__________ GET AVAILABLE SERVICE REQUESTS (artisans) ________________________
   @Get('requests/available')
   @Roles(Role.ARTISAN)
