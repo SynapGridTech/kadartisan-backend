@@ -1,5 +1,6 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable, NotFoundException, ConflictException } from '@nestjs/common';
 import { PrismaService } from 'src/database/prisma.service';
+import { UpdateUserDto } from '../dto/update-user.dto';
 
 @Injectable()
 export class UsersService {
@@ -49,8 +50,67 @@ export class UsersService {
       };
     }
 
+    // Customers expose their saved location/address block when present.
+    if (user.role === 'USER' && user.customerProfile) {
+      return {
+        ...base,
+        profilePicture: user.profilePicture,
+        location: user.customerProfile.location,
+        state: user.customerProfile.state,
+        lga: user.customerProfile.lga,
+        address: user.customerProfile.address,
+      };
+    }
+
     // USER and ADMIN responses stay lean — no artisan/customer fields.
     return base;
+  }
+
+  //_______________ Logic to update the current user's profile + customer address
+  public async updateProfile(userId: string, dto: UpdateUserDto) {
+    const user = await this.prisma.user.findUnique({ where: { id: userId } });
+
+    if (!user) {
+      throw new NotFoundException('User not found');
+    }
+
+    // Guard the unique email constraint with a friendly error.
+    if (dto.email && dto.email !== user.email) {
+      const existing = await this.prisma.user.findUnique({
+        where: { email: dto.email },
+      });
+      if (existing && existing.id !== userId) {
+        throw new ConflictException('Email is already in use');
+      }
+    }
+
+    const userData: any = {};
+    if (dto.fullName !== undefined) userData.fullName = dto.fullName;
+    if (dto.email !== undefined) userData.email = dto.email;
+    if (dto.profilePicture !== undefined)
+      userData.profilePicture = dto.profilePicture;
+
+    const addressData: any = {};
+    if (dto.location !== undefined) addressData.location = dto.location;
+    if (dto.state !== undefined) addressData.state = dto.state;
+    if (dto.lga !== undefined) addressData.lga = dto.lga;
+    if (dto.address !== undefined) addressData.address = dto.address;
+
+    await this.prisma.$transaction(async (tx) => {
+      if (Object.keys(userData).length > 0) {
+        await tx.user.update({ where: { id: userId }, data: userData });
+      }
+
+      // Persist address on the CustomerProfile every account has.
+      if (Object.keys(addressData).length > 0) {
+        await tx.customerProfile.update({
+          where: { userId },
+          data: addressData,
+        });
+      }
+    });
+
+    return this.getProfileById(userId);
   }
 
   //_______________Logic to Get ALL users (customers & artisans)
@@ -99,6 +159,7 @@ export class UsersService {
             skills: { include: { skill: true } },
           },
         },
+        customerProfile: true,
       },
     });
 

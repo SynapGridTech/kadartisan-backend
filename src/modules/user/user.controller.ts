@@ -1,6 +1,7 @@
-import { Controller, Get, UseGuards, Req, Param, ParseUUIDPipe } from '@nestjs/common';
+import { Controller, Get, Patch, Body, UseGuards, Req, Param, ParseUUIDPipe } from '@nestjs/common';
 import { ApiTags, ApiBearerAuth, ApiOperation, ApiResponse, ApiParam } from '@nestjs/swagger';
 import { UsersService } from './providers/user.service';
+import { UpdateUserDto } from './dto/update-user.dto';
 import { JwtAuthGuard } from 'src/common/guards/jwt-auth.guard';
 import { RolesGuard } from 'src/common/guards/roles.guard';
 import { Roles } from 'src/common/decorators/roles.decorator';
@@ -18,6 +19,13 @@ export class UserController {
   @ApiOperation({ summary: 'Get current authenticated user profile' })
   public async getProfile(@Req() req: any) {
     return this.userService.getProfileById(req.user.id);
+  }
+
+    //__________ROUTE TO UPDATE CURRENT USER PROFILE + ADDRESS ________________________
+  @Patch('me')
+  @ApiOperation({ summary: 'Update current user profile (name, avatar, contact) and customer location/address' })
+  public async updateProfile(@Req() req: any, @Body() dto: UpdateUserDto) {
+    return this.userService.updateProfile(req.user.id, dto);
   }
 
     //__________ROUTE TO GET USER STATS ________________________
