@@ -116,7 +116,15 @@ model CustomerProfile {
   id        String   @id @default(uuid()) @db.Uuid
   userId    String   @unique @db.Uuid
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  // Location / address collected during registration (location-setup screen)
+  location String?
+  state    String?
+  lga      String?
+  address  String?
+
   createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt @default(now())
 
   serviceRequests ServiceRequest[] @relation("ServiceRequestCustomer")
 
