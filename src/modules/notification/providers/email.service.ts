@@ -1,6 +1,7 @@
 import { Injectable, Logger } from '@nestjs/common';
 import * as nodemailer from 'nodemailer';
 import * as sgMail from '@sendgrid/mail';
+import { Resend } from 'resend';
 import { otpEmailTemplate } from 'src/common/templates/otp-email.template';
 import { securityAlertTemplate } from 'src/common/templates/security-alert.template';
 import { artisanApprovalTemplate } from 'src/common/templates/artisan-approval.template';
@@ -10,20 +11,25 @@ import { artisanRejectionTemplate } from 'src/common/templates/artisan-rejection
 export class EmailService {
   private readonly logger = new Logger(EmailService.name);
   private transporter: nodemailer.Transporter;
+  private resend: Resend | null = null;
 
-  // When a SendGrid API key is present we send over SendGrid's HTTPS API
-  // (port 443). This is required on hosts like Railway that block outbound
-  // SMTP ports (25/465/587). Without a key we fall back to SMTP, which keeps
-  // local dev (e.g. the Ethereal test transport) working unchanged.
-  private readonly useSendGrid: boolean = !!process.env.SENDGRID_API_KEY;
+  // Transport selection order: SendGrid → Resend → SMTP. The HTTPS APIs
+  // (SendGrid/Resend, both over port 443) are required on hosts like Railway
+  // that block outbound SMTP ports (25/465/587). SMTP is the local-dev fallback
+  // (e.g. the Ethereal test transport) and works unchanged when no API key is set.
+  private readonly transport: 'sendgrid' | 'resend' | 'smtp';
 
   constructor() {
-    if (this.useSendGrid) {
-      sgMail.setApiKey(process.env.SENDGRID_API_KEY as string);
-      this.logger.log('Email transport: SendGrid HTTPS API');
+    if (process.env.SENDGRID_API_KEY) {
+      sgMail.setApiKey(process.env.SENDGRID_API_KEY);
+      this.transport = 'sendgrid';
+    } else if (process.env.RESEND_API_KEY) {
+      this.resend = new Resend(process.env.RESEND_API_KEY);
+      this.transport = 'resend';
     } else {
-      this.logger.log('Email transport: SMTP');
+      this.transport = 'smtp';
     }
+    this.logger.log(`Email transport: ${this.transport}`);
 
     // Always build the SMTP transporter so it's available as a fallback and
     // for local dev, even when SendGrid is the primary transport.
@@ -51,8 +57,10 @@ export class EmailService {
   // health check. SendGrid is HTTP-based with no persistent connection to
   // verify cheaply, so we treat a set API key as "up"; SMTP is verified live.
   public async verifyTransport(): Promise<void> {
-    if (this.useSendGrid) {
-      return; // API key present; nothing to open/verify without sending.
+    // HTTPS API transports (SendGrid/Resend) have no persistent connection to
+    // verify cheaply; a configured key is treated as "up". SMTP is verified live.
+    if (this.transport !== 'smtp') {
+      return;
     }
     await this.transporter.verify();
   }
@@ -84,7 +92,7 @@ export class EmailService {
     }
 
     // SendGrid HTTPS API path (works where outbound SMTP ports are blocked).
-    if (this.useSendGrid) {
+    if (this.transport === 'sendgrid') {
       await sgMail.send({
         to: options.to,
         from, // must be a SendGrid-verified sender or authenticated domain
@@ -92,6 +100,21 @@ export class EmailService {
         html: processedHtml,
         headers,
       });
+      return null; // No preview URL for real delivery.
+    }
+
+    // Resend HTTPS API path (also port 443; free-tier friendly fallback).
+    if (this.transport === 'resend' && this.resend) {
+      const { error } = await this.resend.emails.send({
+        to: options.to,
+        from, // must be a Resend-verified sender or authenticated domain
+        subject: options.subject,
+        html: processedHtml,
+        headers,
+      });
+      if (error) {
+        throw new Error(`Resend: ${error.message}`);
+      }
       return null; // No preview URL for real delivery.
     }
 
