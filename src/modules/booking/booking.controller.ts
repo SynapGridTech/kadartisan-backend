@@ -2,6 +2,7 @@ import {
   Controller,
   Post,
   Get,
+  Delete,
   Body,
   UseGuards,
   Req,
@@ -11,11 +12,7 @@ import {
   Query,
   ParseUUIDPipe,
 } from '@nestjs/common';
-import {
-  ApiTags,
-  ApiBearerAuth,
-  ApiOperation,
-} from '@nestjs/swagger';
+import { ApiTags, ApiBearerAuth, ApiOperation } from '@nestjs/swagger';
 import { BookingService } from './providers/booking.service';
 import { CreateServiceRequestDto } from './dto/create-service-request.dto';
 import { GetRequestsQueryDto } from './dto/get-requests-query.dto';
@@ -54,10 +51,26 @@ export class BookingController {
     return this.bookingService.getMyRequests(req.user.id, query);
   }
 
+  //__________ GET CURRENT ARTISAN'S ACCEPTED/ONGOING/COMPLETED JOBS ________________________
+  @Get('artisan/jobs')
+  @Roles(Role.ARTISAN)
+  @ApiOperation({
+    summary: "Get the current artisan's accepted, ongoing and completed jobs",
+  })
+  public async getArtisanJobs(
+    @Req() req: any,
+    @Query() query: GetRequestsQueryDto,
+  ) {
+    return this.bookingService.getArtisanJobs(req.user.id, query);
+  }
+
   //__________ GET AVAILABLE SERVICE REQUESTS (artisans) ________________________
   @Get('requests/available')
   @Roles(Role.ARTISAN)
-  @ApiOperation({ summary: 'Get available service requests matching the artisan skills or location' })
+  @ApiOperation({
+    summary:
+      'Get available service requests matching the artisan skills or location',
+  })
   public async getAvailableRequests(@Req() req: any) {
     return this.bookingService.getAvailableRequests(req.user.id);
   }
@@ -65,11 +78,49 @@ export class BookingController {
   //__________ ACCEPT A REQUEST (artisans) ________________________
   @Post('request/:id/accept')
   @Roles(Role.ARTISAN)
-  @ApiOperation({ summary: 'Accept an available service request as an artisan' })
+  @ApiOperation({
+    summary: 'Accept an available service request as an artisan',
+  })
   public async acceptRequest(
     @Req() req: any,
     @Param('id', ParseUUIDPipe) requestId: string,
   ) {
     return this.bookingService.acceptRequest(req.user.id, requestId);
+  }
+
+  //__________ SAVE / BOOKMARK A REQUEST (artisans) ________________________
+  @Post('request/:id/save')
+  @Roles(Role.ARTISAN)
+  @HttpCode(HttpStatus.CREATED)
+  @ApiOperation({ summary: 'Save/bookmark a service request as an artisan' })
+  public async saveRequest(
+    @Req() req: any,
+    @Param('id', ParseUUIDPipe) requestId: string,
+  ) {
+    return this.bookingService.saveRequest(req.user.id, requestId);
+  }
+
+  //__________ UNSAVE / REMOVE BOOKMARK (artisans) ________________________
+  @Delete('request/:id/save')
+  @Roles(Role.ARTISAN)
+  @ApiOperation({ summary: 'Remove a saved/bookmarked service request' })
+  public async unsaveRequest(
+    @Req() req: any,
+    @Param('id', ParseUUIDPipe) requestId: string,
+  ) {
+    return this.bookingService.unsaveRequest(req.user.id, requestId);
+  }
+
+  //__________ LIST SAVED REQUESTS (artisans) ________________________
+  @Get('artisan/saved-requests')
+  @Roles(Role.ARTISAN)
+  @ApiOperation({
+    summary: "Get the current artisan's saved/bookmarked requests",
+  })
+  public async getSavedRequests(
+    @Req() req: any,
+    @Query() query: GetRequestsQueryDto,
+  ) {
+    return this.bookingService.getSavedRequests(req.user.id, query);
   }
 }

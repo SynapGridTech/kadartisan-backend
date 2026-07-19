@@ -15,6 +15,7 @@ import { AdminModule } from './modules/admin/admin.module';
 import { BootstrapModule } from './modules/bootstrap/bootstrap.module';
 import { ArtisanModule } from './modules/artisan/artisan.module';
 import { BookingModule } from './modules/booking/booking.module';
+import { ConversationModule } from './modules/conversation/conversation.module';
 import { AdminDashboardModule } from './modules/admin-dashboard/admin-dashboard.module';
 import { AdminAnalyticsModule } from './modules/admin-analytics/admin-analytics.module';
 import { AdminUsersModule } from './modules/admin-users/admin-users.module';
@@ -66,6 +67,7 @@ const isProd = process.env.NODE_ENV === 'production';
     BootstrapModule,
     ArtisanModule,
     BookingModule,
+    ConversationModule,
     AdminDashboardModule,
     AdminAnalyticsModule,
     AdminUsersModule,

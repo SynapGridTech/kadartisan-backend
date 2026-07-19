@@ -87,6 +87,11 @@ model User {
   otps    Otp[]
   appeals Appeal[]
 
+  // Messaging relations
+  conversationsAsCustomer Conversation[] @relation("ConversationCustomer")
+  conversationsAsArtisan  Conversation[] @relation("ConversationArtisan")
+  messagesSent            Message[]      @relation("MessageSender")
+
   // Admin surface relations (additive)
   badges            Badge[]
   transactions      Transaction[]
@@ -116,7 +121,15 @@ model CustomerProfile {
   id        String   @id @default(uuid()) @db.Uuid
   userId    String   @unique @db.Uuid
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  // Location / address collected during registration (location-setup screen)
+  location String?
+  state    String?
+  lga      String?
+  address  String?
+
   createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt @default(now())
 
   serviceRequests ServiceRequest[] @relation("ServiceRequestCustomer")
 
@@ -136,11 +149,13 @@ model ArtisanProfile {
   workshopAddress      String?
 
   // Interface required fields
+  headline             String? // Optional display title/subtitle for profile
   bio                  String?
   profilePicture       String?
   verificationDocuments String[]
   rating               Float   @default(0)
   completedJobs        Int     @default(0)
+  profileViews         Int     @default(0)
   yearsOfExperience    Int?
 
   artisanStatus          ArtisanStatus @default(PENDING)
@@ -149,6 +164,7 @@ model ArtisanProfile {
 
   skills           ArtisanSkill[]
   acceptedRequests ServiceRequest[] @relation("ServiceRequestArtisan")
+  savedRequests    SavedRequest[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -221,9 +237,14 @@ model ServiceRequest {
   urgency         String?
   contactInfo     String?
 
+  scheduledAt DateTime? // Preferred/scheduled time for the service
+
   status    ServiceRequestStatus @default(OPEN)
   createdAt DateTime             @default(now())
   updatedAt DateTime             @updatedAt
+
+  savedBy       SavedRequest[]
+  conversations Conversation[] @relation("ConversationRequest")
 
   // Admin jobs & escrow management (section 7) — additive
   jobStatus     JobStatus  @default(PENDING)
@@ -239,6 +260,68 @@ model ServiceRequest {
   @@index([customerId])
   @@index([acceptedArtisanId])
   @@index([jobStatus])
+}
+
+// ---------- Saved / bookmarked requests (artisan side) ----------
+model SavedRequest {
+  id        String @id @default(uuid()) @db.Uuid
+
+  artisanId String         @db.Uuid
+  artisan   ArtisanProfile @relation(fields: [artisanId], references: [id], onDelete: Cascade)
+
+  requestId String         @db.Uuid
+  request   ServiceRequest @relation(fields: [requestId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+
+  @@unique([artisanId, requestId])
+  @@index([artisanId])
+  @@index([requestId])
+}
+
+// ---------- Conversations & messaging ----------
+model Conversation {
+  id        String @id @default(uuid()) @db.Uuid
+
+  // The two participants, referenced by their User id for a role-agnostic thread.
+  customerUserId String @db.Uuid
+  customerUser   User   @relation("ConversationCustomer", fields: [customerUserId], references: [id], onDelete: Cascade)
+
+  artisanUserId String @db.Uuid
+  artisanUser   User   @relation("ConversationArtisan", fields: [artisanUserId], references: [id], onDelete: Cascade)
+
+  // Optional link to the service request that started the thread.
+  requestId String?         @db.Uuid
+  request   ServiceRequest? @relation("ConversationRequest", fields: [requestId], references: [id], onDelete: SetNull)
+
+  lastMessageAt DateTime @default(now())
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  messages Message[]
+
+  @@unique([customerUserId, artisanUserId, requestId])
+  @@index([customerUserId])
+  @@index([artisanUserId])
+  @@index([lastMessageAt])
+}
+
+model Message {
+  id             String @id @default(uuid()) @db.Uuid
+
+  conversationId String       @db.Uuid
+  conversation   Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+
+  senderUserId String @db.Uuid
+  senderUser   User   @relation("MessageSender", fields: [senderUserId], references: [id], onDelete: Cascade)
+
+  body   String
+  readAt DateTime?
+
+  createdAt DateTime @default(now())
+
+  @@index([conversationId])
+  @@index([senderUserId])
 }
 
 model Appeal {

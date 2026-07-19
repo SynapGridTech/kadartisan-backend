@@ -1,8 +1,14 @@
-import { IsString, IsArray, IsOptional, MinLength, IsNumber } from 'class-validator';
+import {
+  IsString,
+  IsArray,
+  IsOptional,
+  MinLength,
+  IsNumber,
+} from 'class-validator';
 import { ApiProperty } from '@nestjs/swagger';
 
 export class CreateArtisanProfileDto {
-  @ApiProperty({ 
+  @ApiProperty({
     example: ['Plumbing', 'Carpentry'],
     description: 'Array of skill names the artisan offers',
   })
@@ -10,15 +16,25 @@ export class CreateArtisanProfileDto {
   @IsString({ each: true })
   skills: string[];
 
-  @ApiProperty({ 
+  @ApiProperty({
     example: 'Kaduna, Nigeria',
     description: 'Full location string matching interface specification',
   })
   @IsString()
   location: string;
 
-  @ApiProperty({ 
-    example: 'Experienced plumber with 10+ years of experience in residential and commercial plumbing',
+  @ApiProperty({
+    example: 'Master Plumber & Pipe Specialist',
+    description: 'Short display headline/title shown under the artisan name',
+    required: false,
+  })
+  @IsString()
+  @IsOptional()
+  headline?: string;
+
+  @ApiProperty({
+    example:
+      'Experienced plumber with 10+ years of experience in residential and commercial plumbing',
     description: 'Artisan biography',
     required: false,
   })
@@ -26,7 +42,7 @@ export class CreateArtisanProfileDto {
   @IsOptional()
   bio?: string;
 
-  @ApiProperty({ 
+  @ApiProperty({
     example: 'https://example.com/profile.jpg',
     description: 'Profile picture URL',
     required: false,
@@ -35,7 +51,7 @@ export class CreateArtisanProfileDto {
   @IsOptional()
   profilePicture?: string;
 
-  @ApiProperty({ 
+  @ApiProperty({
     example: ['https://example.com/cert1.pdf', 'https://example.com/cert2.pdf'],
     description: 'Verification document URLs',
     required: false,
@@ -45,7 +61,7 @@ export class CreateArtisanProfileDto {
   @IsOptional()
   verificationDocuments?: string[];
 
-  @ApiProperty({ 
+  @ApiProperty({
     example: 10,
     description: 'Years of professional experience',
     required: false,

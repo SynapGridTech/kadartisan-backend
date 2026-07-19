@@ -56,7 +56,7 @@ export class ArtisanService {
     // Parse location to extract state (for backward compatibility)
     let state = dto.state;
     let location = dto.location;
-    
+
     if (dto.location && !dto.state) {
       // Extract state from location string (e.g., "Kaduna North, Kaduna" -> "Kaduna")
       const locationParts = dto.location.split(',');
@@ -80,6 +80,7 @@ export class ArtisanService {
             state: state || '',
             lga: dto.lga || '',
             workshopAddress: dto.workshopAddress,
+            headline: dto.headline,
             bio: dto.bio,
             profilePicture: dto.profilePicture,
             verificationDocuments: dto.verificationDocuments || [],
@@ -100,6 +101,7 @@ export class ArtisanService {
             state: state || '',
             lga: dto.lga || '',
             workshopAddress: dto.workshopAddress,
+            headline: dto.headline,
             bio: dto.bio,
             profilePicture: dto.profilePicture,
             verificationDocuments: dto.verificationDocuments || [],
@@ -149,10 +151,7 @@ export class ArtisanService {
   }
 
   //________________LOGIC to Allow rejected artisan to reapply
-  public async reapplyForArtisan(
-    userId: string,
-    dto: CreateArtisanProfileDto,
-  ) {
+  public async reapplyForArtisan(userId: string, dto: CreateArtisanProfileDto) {
     const user = await this.prisma.user.findUnique({
       where: { id: userId },
     });
@@ -480,25 +479,119 @@ export class ArtisanService {
       return null;
     }
 
+    return this.shapeProfile(profile);
+  }
+
+  //______________ Shape an artisan profile record for API responses
+  private shapeProfile(profile: any) {
     const p = profile as any;
     return {
       id: p.id,
+      userId: p.userId,
       state: p.state,
       lga: p.lga,
       location: p.location,
       workshopAddress: p.workshopAddress,
+      headline: p.headline,
       bio: p.bio,
       profilePicture: p.profilePicture,
       yearsOfExperience: p.yearsOfExperience,
       verificationDocuments: p.verificationDocuments ?? [],
       rating: p.rating,
       completedJobs: p.completedJobs,
+      profileViews: p.profileViews,
       artisanStatus: p.artisanStatus,
       artisanApprovedAt: p.artisanApprovedAt,
       artisanRejectionReason: p.artisanRejectionReason,
-      skills: p.skills.map((s: any) => s.skill.name),
+      skills: p.skills?.map((s: any) => s.skill.name) ?? [],
       createdAt: p.createdAt,
       updatedAt: p.updatedAt,
+    };
+  }
+
+  //______________ LOGIC to view a public artisan profile and count the view
+  // viewerUserId is the authenticated caller; a self-view is not counted.
+  public async viewPublicProfile(artisanUserId: string, viewerUserId?: string) {
+    const profile = await this.prisma.artisanProfile.findUnique({
+      where: { userId: artisanUserId },
+      include: { skills: { include: { skill: true } } },
+    });
+
+    if (!profile) {
+      throw new NotFoundException('Artisan profile not found');
+    }
+
+    // Count the view unless the artisan is looking at their own profile.
+    if (viewerUserId && viewerUserId !== artisanUserId) {
+      const updated = await this.prisma.artisanProfile.update({
+        where: { userId: artisanUserId },
+        data: { profileViews: { increment: 1 } } as any,
+        include: { skills: { include: { skill: true } } },
+      });
+      return this.shapeProfile(updated);
+    }
+
+    return this.shapeProfile(profile);
+  }
+
+  //______________ LOGIC to get an artisan's wallet balance + recent transactions
+  // Balance is derived from settled PAYOUT transactions minus WITHDRAWALs.
+  public async getWallet(artisanUserId: string) {
+    const user = await this.prisma.user.findUnique({
+      where: { id: artisanUserId },
+      include: { artisanProfile: true },
+    });
+
+    if (!user || user.role !== 'ARTISAN' || !user.artisanProfile) {
+      throw new NotFoundException('Artisan profile not found for this account');
+    }
+
+    // Fetch all of the artisan's transactions once; aggregate for the balance
+    // and reuse the newest 20 for the recent-activity list.
+    const allTransactions = await this.prisma.transaction.findMany({
+      where: { userId: artisanUserId },
+      orderBy: { createdAt: 'desc' },
+    });
+
+    // Successful inflows (payouts/earnings) minus successful outflows (withdrawals/fees).
+    const inTypes = new Set(['PAYOUT', 'DEPOSIT']);
+    const outTypes = new Set(['WITHDRAWAL', 'FEE']);
+
+    let available = 0;
+    let pending = 0;
+    let lifetimeEarnings = 0;
+
+    for (const t of allTransactions) {
+      const amount = t.amount ?? 0;
+      if (t.status === 'SUCCESS') {
+        if (inTypes.has(t.type)) {
+          available += amount;
+          lifetimeEarnings += amount;
+        } else if (outTypes.has(t.type)) {
+          available -= amount;
+        }
+      } else if (t.status === 'PENDING' && inTypes.has(t.type)) {
+        pending += amount;
+      }
+    }
+
+    return {
+      currency: 'NGN',
+      balance: {
+        available,
+        pending,
+        lifetimeEarnings,
+      },
+      recentTransactions: allTransactions.slice(0, 20).map((t) => ({
+        id: t.id,
+        reference: t.reference,
+        type: t.type,
+        status: t.status,
+        amount: t.amount,
+        currency: t.currency,
+        description: t.description,
+        createdAt: t.createdAt,
+      })),
     };
   }
 }
