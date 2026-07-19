@@ -1,4 +1,9 @@
-import { Body, Controller, Post } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Post,
+  ServiceUnavailableException,
+} from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiResponse } from '@nestjs/swagger';
 import { NotificationService } from './providers/notification.service';
 import { EmailService } from './providers/email.service';
@@ -22,18 +27,28 @@ export class NotificationController {
   })
   @ApiResponse({ status: 201, description: 'Test email dispatched' })
   async testEmail(@Body() dto: TestEmailDto) {
-    const previewUrl = await this.emailService.sendTestEmail(
-      dto.to,
-      dto.subject,
-      dto.message,
-    );
-    return {
-      success: true,
-      message: `Test email sent to ${dto.to}`,
-      previewUrl,
-      note: previewUrl
-        ? 'Using Ethereal dev transport — open previewUrl to view the captured email (not delivered to a real inbox).'
-        : 'Mail dispatched via the configured SMTP transport.',
-    };
+    try {
+      const previewUrl = await this.emailService.sendTestEmail(
+        dto.to,
+        dto.subject,
+        dto.message,
+      );
+      return {
+        success: true,
+        message: `Test email sent to ${dto.to}`,
+        previewUrl,
+        note: previewUrl
+          ? 'Using Ethereal dev transport — open previewUrl to view the captured email (not delivered to a real inbox).'
+          : 'Mail dispatched via the configured transport.',
+      };
+    } catch (err) {
+      // Surface a meaningful 503 instead of a bare 500 so callers can tell a
+      // mail-delivery failure (e.g. blocked SMTP port, bad credentials) apart
+      // from an unexpected server error.
+      const detail = err instanceof Error ? err.message : 'Unknown error';
+      throw new ServiceUnavailableException(
+        `Failed to send test email: ${detail}`,
+      );
+    }
   }
 }

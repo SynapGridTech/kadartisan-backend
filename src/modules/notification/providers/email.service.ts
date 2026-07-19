@@ -1,5 +1,7 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
 import * as nodemailer from 'nodemailer';
+import * as sgMail from '@sendgrid/mail';
+import { Resend } from 'resend';
 import { otpEmailTemplate } from 'src/common/templates/otp-email.template';
 import { securityAlertTemplate } from 'src/common/templates/security-alert.template';
 import { artisanApprovalTemplate } from 'src/common/templates/artisan-approval.template';
@@ -7,9 +9,30 @@ import { artisanRejectionTemplate } from 'src/common/templates/artisan-rejection
 
 @Injectable()
 export class EmailService {
+  private readonly logger = new Logger(EmailService.name);
   private transporter: nodemailer.Transporter;
+  private resend: Resend | null = null;
+
+  // Transport selection order: SendGrid → Resend → SMTP. The HTTPS APIs
+  // (SendGrid/Resend, both over port 443) are required on hosts like Railway
+  // that block outbound SMTP ports (25/465/587). SMTP is the local-dev fallback
+  // (e.g. the Ethereal test transport) and works unchanged when no API key is set.
+  private readonly transport: 'sendgrid' | 'resend' | 'smtp';
 
   constructor() {
+    if (process.env.SENDGRID_API_KEY) {
+      sgMail.setApiKey(process.env.SENDGRID_API_KEY);
+      this.transport = 'sendgrid';
+    } else if (process.env.RESEND_API_KEY) {
+      this.resend = new Resend(process.env.RESEND_API_KEY);
+      this.transport = 'resend';
+    } else {
+      this.transport = 'smtp';
+    }
+    this.logger.log(`Email transport: ${this.transport}`);
+
+    // Always build the SMTP transporter so it's available as a fallback and
+    // for local dev, even when SendGrid is the primary transport.
     // For Gmail: use port 465 with secure=true, or port 587 with secure=false (STARTTLS)
     const isGmail = process.env.EMAIL_HOST === 'smtp.gmail.com';
     this.transporter = nodemailer.createTransport({
@@ -30,6 +53,18 @@ export class EmailService {
     });
   }
 
+  // Reports whether the mail transport is configured/reachable. Used by the
+  // health check. SendGrid is HTTP-based with no persistent connection to
+  // verify cheaply, so we treat a set API key as "up"; SMTP is verified live.
+  public async verifyTransport(): Promise<void> {
+    // HTTPS API transports (SendGrid/Resend) have no persistent connection to
+    // verify cheaply; a configured key is treated as "up". SMTP is verified live.
+    if (this.transport !== 'smtp') {
+      return;
+    }
+    await this.transporter.verify();
+  }
+
   // ✅ Generic Mail Sender — returns the Ethereal preview URL when available (dev), else null.
   public async sendMail(options: {
     to: string;
@@ -42,26 +77,63 @@ export class EmailService {
     
     // Replace placeholder in email templates with actual unsubscribe URL
     const processedHtml = options.html.replace(/{{unsubscribeUrl}}/g, unsubscribeUrl);
-    
+
+    // Deliverability headers shared by both transports.
+    const headers = {
+      'List-Unsubscribe': `<${unsubscribeUrl}>, <mailto:unsubscribe@kadartisan.com?subject=unsubscribe>`,
+      'List-Unsubscribe-Post': 'List-Unsubscribe=One-Click',
+      Precedence: 'bulk', // Prevents auto-replies, good practice
+      'X-Auto-Response-Suppress': 'OOF, AutoReply',
+    };
+
+    const from = process.env.EMAIL_FROM;
+    if (!from) {
+      throw new Error('EMAIL_FROM is not configured');
+    }
+
+    // SendGrid HTTPS API path (works where outbound SMTP ports are blocked).
+    if (this.transport === 'sendgrid') {
+      await sgMail.send({
+        to: options.to,
+        from, // must be a SendGrid-verified sender or authenticated domain
+        subject: options.subject,
+        html: processedHtml,
+        headers,
+      });
+      return null; // No preview URL for real delivery.
+    }
+
+    // Resend HTTPS API path (also port 443; free-tier friendly fallback).
+    if (this.transport === 'resend' && this.resend) {
+      const { error } = await this.resend.emails.send({
+        to: options.to,
+        from, // must be a Resend-verified sender or authenticated domain
+        subject: options.subject,
+        html: processedHtml,
+        headers,
+      });
+      if (error) {
+        throw new Error(`Resend: ${error.message}`);
+      }
+      return null; // No preview URL for real delivery.
+    }
+
+    // SMTP path (local dev / Ethereal).
     const info = await this.transporter.sendMail({
-      from: process.env.EMAIL_FROM,
+      from,
       to: options.to,
       subject: options.subject,
       html: processedHtml,
-      // Headers that improve email deliverability and avoid spam filters
-      headers: {
-        'List-Unsubscribe': `<${unsubscribeUrl}>, <mailto:unsubscribe@kadartisan.com?subject=unsubscribe>`,
-        'List-Unsubscribe-Post': 'List-Unsubscribe=One-Click',
-        'Precedence': 'bulk', // Prevents auto-replies, good practice
-        'X-Auto-Response-Suppress': 'OOF, AutoReply',
-      },
+      headers,
     });
 
     // When using Ethereal (free dev SMTP), no mail is actually delivered —
     // nodemailer exposes a preview URL to view the captured message instead.
     const previewUrl = nodemailer.getTestMessageUrl(info);
     if (previewUrl) {
-      console.log(`📧 Email preview (Ethereal) for "${options.subject}" → ${previewUrl}`);
+      this.logger.log(
+        `📧 Email preview (Ethereal) for "${options.subject}" → ${previewUrl}`,
+      );
     }
     return previewUrl || null;
   }

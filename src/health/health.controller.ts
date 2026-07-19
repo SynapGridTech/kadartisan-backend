@@ -31,8 +31,10 @@ export class EmailHealthIndicator extends HealthIndicator {
 
   async isHealthy(key: string) {
     try {
-      // Verify SMTP connection is working
-      await this.emailService['transporter'].verify();
+      // Verify the configured mail transport (SendGrid API key presence, or a
+      // live SMTP connection). Delegated so the check follows whichever
+      // transport EmailService actually uses.
+      await this.emailService.verifyTransport();
       return this.getStatus(key, true, { message: 'Email service is operational' });
     } catch (error) {
       // Never fail overall health if email service is down - return a warning instead
