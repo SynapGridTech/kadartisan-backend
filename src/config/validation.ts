@@ -11,6 +11,9 @@ export const envValidationSchema = Joi.object({
   EMAIL_USER: Joi.string().default('test-user'),
   EMAIL_PASS: Joi.string().default('test-pass'),
   EMAIL_FROM: Joi.string().pattern(/^.*<[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}>$|^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/).default('noreply@example.com'),
+  // SendGrid HTTPS API key. When set, email is sent via SendGrid (port 443)
+  // instead of SMTP — required on hosts that block outbound SMTP ports.
+  SENDGRID_API_KEY: Joi.string().optional(),
   BASE_URL: Joi.string().uri().default('http://localhost:3000'),
   FRONTEND_URL: Joi.string().uri().default('http://localhost:3002'),
 });
