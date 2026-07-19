@@ -52,18 +52,37 @@ export class AuthService {
       },
     });
 
-    if (channel === OtpChannel.PHONE) {
-      console.log('OTP generated:', otp);
-    }
-    if (channel === OtpChannel.EMAIL) {
-      console.log(`OTP for ${identifier}: ${otp}`);
-    }
+    // Actually deliver the code over the requested channel. Failures here
+    // surface to the caller since the user is actively waiting for the code.
+    await this.dispatchOtp(identifier, channel, otp);
 
     return {
       message: 'OTP sent successfully',
       role: selectedRole,
-      otp, // TODO: remove in production
+      // Only expose the raw code outside production to keep dev/testing easy.
+      // In production the code is delivered by email/SMS, never returned.
+      ...(process.env.NODE_ENV === 'production' ? {} : { otp }),
     };
+  }
+
+  //----------------------------------------
+  // Deliver an OTP code over the requested channel (email or SMS/WhatsApp).
+  // Centralized so requestOtp and requestPasswordReset stay consistent.
+  //----------------------------------------
+  private async dispatchOtp(
+    identifier: string,
+    channel: OtpChannel,
+    otp: string,
+  ) {
+    if (channel === OtpChannel.EMAIL) {
+      await this.emailService.sendOtpEmail(identifier, otp);
+    } else {
+      // PHONE and WHATSAPP both go through the SMS/Twilio transport.
+      await this.smsService.sendSms(
+        identifier,
+        `Your KadArtisan verification code is ${otp}. It expires in 5 minutes.`,
+      );
+    }
   }
 
   public async verifyOtp(
@@ -375,15 +394,14 @@ export class AuthService {
       },
     });
 
-    if (channel === 'EMAIL') {
-      console.log(`OTP for ${user.email}: ${otp}`);
-    } else {
-      console.log(`OTP for ${user.phoneNumber}: ${otp}`);
-    }
+    // Deliver the reset code over the requested channel.
+    const target = channel === 'EMAIL' ? user.email! : user.phoneNumber;
+    await this.dispatchOtp(target, channel, otp);
 
     return {
       message: 'If an account exists, an OTP has been sent.',
-      otp, // TODO: remove in production
+      // Only expose the raw code outside production.
+      ...(process.env.NODE_ENV === 'production' ? {} : { otp }),
     };
   }
 
