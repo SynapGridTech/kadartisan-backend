@@ -1,4 +1,8 @@
-import { Injectable, NotFoundException, ConflictException } from '@nestjs/common';
+import {
+  Injectable,
+  NotFoundException,
+  ConflictException,
+} from '@nestjs/common';
 import { PrismaService } from 'src/database/prisma.service';
 import { UpdateUserDto } from '../dto/update-user.dto';
 
@@ -259,6 +263,8 @@ export class UsersService {
         completed: countByStatus(acceptedRequests, 'COMPLETED'),
         cancelled: countByStatus(acceptedRequests, 'CANCELLED'),
       };
+      // Surface profile views so the home stats row can drop its placeholder.
+      result.profileViews = (user.artisanProfile as any)?.profileViews ?? 0;
     }
 
     return result;
